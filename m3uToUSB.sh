@@ -28,11 +28,8 @@ else
 fi
 
 function convertSong() {
-
-}
-
-function checkDependencies() {
-	# ffmpeg, libmp3lame, coreutils (because Windows), possibly exfat-utils
+	# Great idea from this website to convert files in parallel, quick conversion! Requires ffmpeg, and moreutils
+	# https://wiki.archlinux.org/index.php/Convert_Flac_to_Mp3
 }
 
 function displayHelp() {
