@@ -4,14 +4,23 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v0.1.0
+# - Added multiple function definitions in prep for what's to come
+# - Untested version of importM3U() made with a new method I found
+# - Added a check for ffmpeg and moreutils (planning on doing parallel processing for increased speed)
+#
 # v0.0.1
 # - Initial commit
 #
-# v0.0.1, 17 Aug. 2016 11:14 PST
+# v0.1.0, 01 Dec. 2016 14:43 PST
 
 ### Variables
 
-
+declare -a filePaths # Original paths from the m3u file
+declare -a convertedPaths # Paths that have been converted for use with win2UnixPath()
+m3uFile=""
+prefix="" # If the path needs to be changed
+w2uMode="" # Change this to 'upper' or 'cut' if needed, see win2UnixPath() documentation for more info
 
 ### Functions
 
@@ -44,8 +53,25 @@ function processArgs() {
 
 }
 
+function importM3U() {
+	# Import the whole m3u file into an array, since it might need to be used multiple times
+	# http://stackoverflow.com/questions/21121562/shell-adding-string-to-an-array
+	while read -r line
+	do
+		[[ "$line" == \#* ]] && continue # Skip the line if it starts with a '#'
+		filePaths+=("$line")
+	done
+	
+	# Now that the lines are imported, make sure they are all Linux-friendly
+	for path in "${filePaths[@]}"
+	do
+		convertedPaths+=("$(win2UnixPath "$path" "$w2uMode")")
+	done
+}
+
 ### Main Script
 
+checkRequirements "ffmpeg" "moreutils"
 
 
 #EOF
