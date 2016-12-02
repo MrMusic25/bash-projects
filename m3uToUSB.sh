@@ -4,6 +4,11 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v0.4.0
+# - Added code to remove trailing '/' from prefix and outputFolder, if it exists
+# - Added touchTest() to easily check if user has write permissions for folder
+# - Added error checking for outputFolder, and offer to make folder if non-existent
+#
 # v0.3.0
 # - Filled out displayHelp()
 # - processArgs() is ready
@@ -30,7 +35,7 @@
 # - No real reason for it, but let user change timeout val from commandline?
 #   ~ Easy implementation, but displayHelp gets pretty long
 #
-# v0.3.0, 02 Dec. 2016 00:41 PST
+# v0.4.0, 02 Dec. 2016 13:50 PST
 
 ### Variables
 
@@ -115,25 +120,6 @@ function processArgs() {
 	
 	for arg in "$@"
 	do
-		# Minimum two arguments - .meu and output folder. Check validity and move on if so
-		if [[ -f "$arg" ]]; then
-			if [[ -d "$2" ]]; then
-				# Only successful case. Nested because it makes reporting errors easier
-				m3uFile="$arg"
-				outputFolder="$2"
-				return # Slightly messy, but there shouldn't be any arguments after this anyways
-			else # Bad output folder
-				debug "l2" "ERROR: Output folder $2 is invalid or non-existent! Please fix and re-run!"
-				displayHelp
-				exit 1
-			fi
-		else
-			debug "l2" "ERROR: Invalid playlist file $arg given! Please fix and re-run!"
-			displayHelp
-			exit 1
-		fi	
-		
-		# If the previous block wasn
 		case "$arg" in
 			-h|--help)
 			displayHelp
@@ -195,6 +181,9 @@ function processArgs() {
 				exit 1
 			fi
 			prefix="$2"
+			if [[ "$prefix" == */ ]]; then
+				prefix="$(echo "$prefix" | rev | cut -d'/' -f 1 --complement | rev)" # Cuts the trailing slash, if present, to prevent errors
+			fi
 			shift
 			;;
 			*)
@@ -264,11 +253,63 @@ function testImport() {
 	done
 }
 
+function touchTest() {
+	touch "$1"
+	estatus=$?
+	case "$estatus" in
+		0)
+		debug "Folder $1 passed the touch test!"
+		;;
+		*)
+		debug "l2" "ERROR: You do not have write permission for the folder $1 ! Please fix, or select a different folder, and re-run!"
+		displayHelp
+		exit $estatus
+		;;
+	esac
+}
+
 ### Main Script
 
 processArgs "$@"
 checkRequirements "ffmpeg" "libmp3lame0" #"moreutils"
 [[ -z $overwrite ]] && ffmpegOptions="$ffmpegOptions ""-y"
+
+# Error checking for outputFolder should only trigger if it is not a valid directory
+if [[ ! -d "$outputFolder"]]; then
+	debug "l2" "ERROR: $outputFolder is not a directory!"
+	getUserAnswer "Would you like to attempt to make this directory? (Be careful!)"
+	case $? in
+		0)
+		debug "Attempting to create directory..."
+		mkdir "$outputFolder"
+		value=$?
+		case $value in
+			0)
+			debug "l3" "Folder $outputFolder created successfully! Moving on..."
+			;;
+			*)
+			debug "l2" "Error while attemping to create folder: exit status $value"
+			announce "Please fix the error and re-run the script!"
+			displayHelp
+			exit $value
+			;;
+		esac
+		;;
+		1)
+		debug "User decided not to make new folder, exiting script..."
+		announce "Please find another directory and re-run the script!"
+		displayHelp
+		exit 1
+		;;
+		*)
+		debug "l2" " ERROR: Unknown exit status!"
+		displayHelp
+		exit 1
+		;;
+	esac
+fi
+touchTest "$outputFolder"
+
 
 
 #EOF
