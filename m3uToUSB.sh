@@ -309,6 +309,9 @@ if [[ ! -d "$outputFolder"]]; then
 	esac
 fi
 touchTest "$outputFolder"
+if [[ "$outputFolder" == */ ]]; then # If it made it this far, folder is ready for use. Cut trailing slash if present
+	outputFolder="$(echo "$outputFolder" | rev | cut -d'/' -f 1 --complement | rev)"
+fi
 
 
 
