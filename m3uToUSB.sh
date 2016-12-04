@@ -4,6 +4,11 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.0.0
+# - Ready for release!
+# - Added converterLoop(), which does the actual work. Will find a way to parallel-ize this in a later version
+# - convertSong() will now copy if the song is mp3 or unconvertible, sending a debug message for the latter
+#
 # v0.5.0
 # - Added -c | --clean-numbers option to get rid of numbers in output song titles
 # - Created outputFilename(), to be used like win2UnixPath() but for the output name. Handles artist, album, folder checks, and numbers
@@ -40,8 +45,10 @@
 #   ~ Easy implementation, but displayHelp gets pretty long
 # - Option to convert input m3u with w2u and output to a new m3u file
 #   ~ Copy both to output folder...?
+# - Display percentage done every 15 or 30 seconds, so user sees progress (hopefully not an async process...)
+#   ~ Possibly get some file conversion time averages and estimate time to completion?
 #
-# v0.5.0, 04 Dec. 2016 01:44 PST
+# v1.0.0, 04 Dec. 2016 02:14 PST
 
 ### Variables
 
@@ -77,6 +84,19 @@ function convertSong() {
 	# Check if the bitrate has a 'k' in it for functionality
 	if [[ "$bitrate" != *k ]]; then
 		bitrate="$bitrate""k"
+	fi
+	
+	# Warn user of unconvertible files
+	if [[ "$1" == *.m4p ]]; then
+		debug "l2" "WARNING: File $1 contains DRM! This file cannot be converted an will be copied instead!"
+		cp "$1" "$2"
+		return $?
+	fi
+	
+	# If song is already MP3, copy instead of trying to convert
+	if [[ "$1" == *.mp3 ]]; then
+		cp "$1" "$2"
+		return $?
 	fi
 	
 	timeout --foreground -k "$timeoutVal" ffmpeg -i "$1" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$ffmpegOptions" "$2"
@@ -332,7 +352,18 @@ function outputFilename() {
 	echo "$newFile"
 }
 
-
+function converterLoop() {
+	announce "Beginnning conversion progress!" "This will take a while depending on processor speed and playlist length." "This screen will only show errors, but will notify you when it is complete."
+	sleep 3
+	
+	for songFile in "${convertedPaths[@]}"
+	do
+		currentFile="$(outputFilename "$songFile")"
+		# If anyone ever asks why I love functions, I will show them this. 
+		# The function right here is the reason I love programming (or scripting, to be more specific)
+		convertSong "$songFile" "$currentFile"
+	done
+}
 
 ### Main Script
 
@@ -379,8 +410,10 @@ if [[ "$outputFolder" == */ ]]; then # If it made it this far, folder is ready f
 	outputFolder="$(echo "$outputFolder" | rev | cut -d'/' -f 1 --complement | rev)"
 fi
 
-# Ready to start converting, mostly
+# Ready to start converting. Import files, then loop!
 importM3U
+converterLoop
 
+announce "Script has completed successfully!" "Please consult log for any file that could not be converted!"
 
 #EOF
