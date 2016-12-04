@@ -4,6 +4,10 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.0.1
+# - Small changes, forgot to run it through shellcheck
+# - for loop in processArgs() seems to be preventing it from working now, update to this will come tomorrow
+#
 # v1.0.0
 # - Ready for release!
 # - Added converterLoop(), which does the actual work. Will find a way to parallel-ize this in a later version
@@ -48,7 +52,7 @@
 # - Display percentage done every 15 or 30 seconds, so user sees progress (hopefully not an async process...)
 #   ~ Possibly get some file conversion time averages and estimate time to completion?
 #
-# v1.0.0, 04 Dec. 2016 02:14 PST
+# v1.0.1, 04 Dec. 2016 02:39 PST
 
 ### Variables
 
@@ -173,7 +177,7 @@ function processArgs() {
 			esac
 			shift
 			;;
-			-c | --clean-numbers)
+			-c|--clean-numbers)
 			noNumbers="true"
 			if [[ $2 == \'* ]]; then # Starts with a '
 				numberDelimiter=$2 # Quotes might break this one, needs testing
@@ -320,25 +324,25 @@ function outputFilename() {
 		;;
 		artist)
 		newFile="$outputFolder""$artistFolder"
-		if [[ ! -d "$newfile"]]; then
+		if [[ ! -d "$newFile" ]]; then
 			mkdir "$newFile"
-			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newLine ! Please fix and re-run!" && exit 1 # Simple error checking
+			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!" && exit 1 # Simple error checking
 		fi
 		newFile="$newFile""$fileName"
 		;;
 		album)
 		# Artist folder first
 		newFile="$outputFolder""$artistFolder"
-		if [[ ! -d "$newfile"]]; then
+		if [[ ! -d "$newFile" ]]; then
 			mkdir "$newFile"
-			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newLine ! Please fix and re-run!" && exit 1 # Simple error checking
+			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!" && exit 1 # Simple error checking
 		fi
 		
 		# Now, check album folder
 		newFile="$newFile""$albumFolder"
-		if [[ ! -d "$newfile"]]; then
+		if [[ ! -d "$newFile" ]]; then
 			mkdir "$newFile"
-			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newLine ! Please fix and re-run!" && exit 1 # Simple error checking
+			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!" && exit 1 # Simple error checking
 		fi
 		newFile="$newFile""$fileName"
 		;;
@@ -372,7 +376,7 @@ checkRequirements "ffmpeg" "libmp3lame0" #"moreutils"
 [[ -z $overwrite ]] && ffmpegOptions="$ffmpegOptions ""-y"
 
 # Error checking for outputFolder should only trigger if it is not a valid directory
-if [[ ! -d "$outputFolder"]]; then
+if [[ ! -d "$outputFolder" ]]; then
 	debug "l2" "ERROR: $outputFolder is not a directory!"
 	getUserAnswer "Would you like to attempt to make this directory? (Be careful!)"
 	case $? in
