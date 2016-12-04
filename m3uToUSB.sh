@@ -4,6 +4,10 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v0.5.0
+# - Added -c | --clean-numbers option to get rid of numbers in output song titles
+# - Created outputFilename(), to be used like win2UnixPath() but for the output name. Handles artist, album, folder checks, and numbers
+# 
 # v0.4.0
 # - Added code to remove trailing '/' from prefix and outputFolder, if it exists
 # - Added touchTest() to easily check if user has write permissions for folder
@@ -34,8 +38,10 @@
 #   ~ https://wiki.archlinux.org/index.php/Convert_Flac_to_Mp3
 # - No real reason for it, but let user change timeout val from commandline?
 #   ~ Easy implementation, but displayHelp gets pretty long
+# - Option to convert input m3u with w2u and output to a new m3u file
+#   ~ Copy both to output folder...?
 #
-# v0.4.0, 02 Dec. 2016 13:50 PST
+# v0.5.0, 04 Dec. 2016 01:44 PST
 
 ### Variables
 
@@ -45,10 +51,11 @@ m3uFile="" # Self-explanatory
 outputFolder="" # I only put a comment here to make it look nice
 prefix="" # If the path needs to be changed
 w2uMode="" # Change this to 'upper' or 'cut' if needed, see win2UnixPath() documentation for more info
-bitrate=128
+bitrate=128 # Explanatory
 preserveLevel="artist" # Artist folder will be saved by default. Also works with album, or none
 ffmpegOptions="" # Random options to be thrown in 
 timeoutVal="120s" # Time to wait before assuming a conversion has failed
+numberDelimiter=' ' # Defaults to a space, but can be changed by user if needed
 
 ### Functions
 
@@ -94,6 +101,8 @@ Options:
    -e | --edit-path-mode <[U]pper,[C]ut>         : Leaves the Windows root uppercase, or cuts it out (see documentation)
    -f | --prefix <folder_prefix>                 : Adds the prefix to each m3u line if it is a Windows path (/mnt, /media)
    -n | --no-overwrite                           : Disables overwriting of conflicting files
+   -c | --clean-numbers [delimiter]              : Deletes anything before delimiter in output file (gets rid of numbers before song titles)
+                                                 : Delimiter not required, set to space by default. Besure to encase delimiter in ''!
    
 Not limited to .m3u files, any newline delimited file works as well!
 Windows paths will be converted automatically, useful if running on Bash for Windows
@@ -143,6 +152,12 @@ function processArgs() {
 				;;
 			esac
 			shift
+			;;
+			-c | --clean-numbers)
+			noNumbers="true"
+			if [[ $2 == \'* ]]; then # Starts with a '
+				numberDelimiter=$2 # Quotes might break this one, needs testing
+			fi
 			;;
 			-d|--delete)
 			deleteMode="1" # If var is present, run deleteOldSongs(). This value could technically be anything
@@ -268,6 +283,57 @@ function touchTest() {
 	esac
 }
 
+# outputFilename "input file"
+# Everything else is taken from global variables, which should already be set
+function outputFilename() {
+	# Just to be sure...
+	[[ -z $1 ]] && debug "ERROR: No argument supplied to outputFilename!" && return
+	
+	artistFolder="$(echo "$1" | rev | cut -d'/' -f3 | rev)"
+	albumFolder="$(echo "$1" | rev | cut -d'/' -f2 | rev)"
+	fileName="$(echo "$1" | rev | cut -d'/' -f 1 | rev | cut -d'.' -f1)"".mp3" # Wasted cycles, but who cares with today's processors?
+	[[ ! -z $noNumbers ]] && fileName="$(echo "$fileName" | cut -d '$numberDelimiter' -f1 --complement)" # I was gonna save this for a later date, but the implementation was simple
+	
+	case "$preserveLevel" in
+		none)
+		newFile="$outputFolder""$fileName"
+		;;
+		artist)
+		newFile="$outputFolder""$artistFolder"
+		if [[ ! -d "$newfile"]]; then
+			mkdir "$newFile"
+			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newLine ! Please fix and re-run!" && exit 1 # Simple error checking
+		fi
+		newFile="$newFile""$fileName"
+		;;
+		album)
+		# Artist folder first
+		newFile="$outputFolder""$artistFolder"
+		if [[ ! -d "$newfile"]]; then
+			mkdir "$newFile"
+			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newLine ! Please fix and re-run!" && exit 1 # Simple error checking
+		fi
+		
+		# Now, check album folder
+		newFile="$newFile""$albumFolder"
+		if [[ ! -d "$newfile"]]; then
+			mkdir "$newFile"
+			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newLine ! Please fix and re-run!" && exit 1 # Simple error checking
+		fi
+		newFile="$newFile""$fileName"
+		;;
+		*)
+		debug "l2" "A fatal error has occurred! Unknown preserve level: $preserveLevel!"
+		exit 1
+		;;
+	esac
+	
+	# Now that that's all over with and output file is ready with working directories
+	echo "$newFile"
+}
+
+
+
 ### Main Script
 
 processArgs "$@"
@@ -313,6 +379,8 @@ if [[ "$outputFolder" == */ ]]; then # If it made it this far, folder is ready f
 	outputFolder="$(echo "$outputFolder" | rev | cut -d'/' -f 1 --complement | rev)"
 fi
 
+# Ready to start converting, mostly
+importM3U
 
 
 #EOF
