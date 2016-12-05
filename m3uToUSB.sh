@@ -67,6 +67,7 @@ preserveLevel="artist" # Artist folder will be saved by default. Also works with
 ffmpegOptions="" # Random options to be thrown in 
 timeoutVal="120s" # Time to wait before assuming a conversion has failed
 numberDelimiter=' ' # Defaults to a space, but can be changed by user if needed
+#IFS='' # Testing, remove later
 
 ### Functions
 
@@ -93,13 +94,14 @@ function convertSong() {
 	# Warn user of unconvertible files
 	if [[ "$1" == *.m4p ]]; then
 		debug "l2" "WARNING: File $1 contains DRM! This file cannot be converted an will be copied instead!"
-		cp "$1" "$2"
+		cp "$1" "$(echo "$2" | rev | cut -d'/' -f1 --complement | rev)"
 		return $?
 	fi
 	
 	# If song is already MP3, copy instead of trying to convert
-	if [[ "$1" == *.mp3 ]]; then
-		cp "$1" "$2"
+	if [[ "$1" == *.mp3 || "$1" == *.MP3 ]]; then
+		debug "Copying $1 to $2..."
+		cp "$1" "$(echo "$2" | rev | cut -d'/' -f1 --complement | rev)"
 		return $?
 	fi
 	
@@ -294,6 +296,19 @@ function testImport() {
 	do
 		echo "$items"
 	done
+	
+	pause
+	echo " "
+	echo "Showing whether each item is a file..."
+	for itemss in "${convertedPaths[@]}"
+	do
+		printf "Is %s a file?:" "$itemss"
+		if [[ -f "$itemss" ]]; then
+			printf "True\n"
+		else
+			printf "False\n"
+		fi
+	done
 	exit 0
 }
 
@@ -333,7 +348,7 @@ function outputFilename() {
 			mkdir "$newFile"
 			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!"; exit 1 # Simple error checking
 		fi
-		newFile="$newFile""$fileName"
+		newFile="$newFile"/"$fileName"
 		;;
 		album)
 		# Artist folder first
@@ -383,14 +398,14 @@ function converterLoop() {
 ### Main Script
 
 processArgs "$@"
-#testImport
+testImport
 checkRequirements "ffmpeg" #"libmp3lame0" #"moreutils"
 [[ -z $overwrite ]] && ffmpegOptions="$ffmpegOptions ""-y"
 
 # Error checking for outputFolder should only trigger if it is not a valid directory
 if [[ ! -d "$outputFolder" ]]; then
 	debug "l2" "ERROR: $outputFolder is not a directory!"
-	getUserAnswer "Would you like to attempt to make this directory? (Be careful!)"
+	getUserAnswer "Would you like to attempt to make this directory? Take caution if so"
 	case $? in
 		0)
 		debug "Attempting to create directory..."
