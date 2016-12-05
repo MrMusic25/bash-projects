@@ -103,15 +103,17 @@ function convertSong() {
 		return $?
 	fi
 	
-	timeout --foreground -k "$timeoutVal" ffmpeg -i "$1" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$ffmpegOptions" "$2"
+	#timeout --foreground -k "$timeoutVal" 
+	ffmpeg -i "$1" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$ffmpegOptions" "$2"
 	value=$?
 	if [[ $value -ne 0 ]]; then
-		debug "l2" "An error ocurred while converting $1 ! Exit status: $value"
+		debug "l2" "An error ocurred while converting $1 . Exit status: $value"
 	fi
 }
 
 function displayHelp() {
 read -d '' helpVar <<"endHelp"
+
 m3uToUSB.sh - A script to convert a text playlist of songs to MP3
 NOTE: Files with DRM will be copied instead of converted, and you will be notified
 
@@ -151,8 +153,10 @@ function processArgs() {
 		exit 1
 	fi
 	
-	for arg in "$@"
+	while [[ -z $outputFolder ]];
 	do
+		arg="$1"
+		
 		case "$arg" in
 			-h|--help)
 			displayHelp
@@ -290,6 +294,7 @@ function testImport() {
 	do
 		echo "$items"
 	done
+	exit 0
 }
 
 function touchTest() {
@@ -320,31 +325,31 @@ function outputFilename() {
 	
 	case "$preserveLevel" in
 		none)
-		newFile="$outputFolder""$fileName"
+		newFile="$outputFolder"/"$fileName"
 		;;
 		artist)
-		newFile="$outputFolder""$artistFolder"
+		newFile="$outputFolder"/"$artistFolder"
 		if [[ ! -d "$newFile" ]]; then
 			mkdir "$newFile"
-			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!" && exit 1 # Simple error checking
+			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!"; exit 1 # Simple error checking
 		fi
 		newFile="$newFile""$fileName"
 		;;
 		album)
 		# Artist folder first
-		newFile="$outputFolder""$artistFolder"
+		newFile="$outputFolder"/"$artistFolder"
 		if [[ ! -d "$newFile" ]]; then
 			mkdir "$newFile"
-			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!" && exit 1 # Simple error checking
+			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!"; exit 1 # Simple error checking
 		fi
 		
 		# Now, check album folder
-		newFile="$newFile""$albumFolder"
+		newFile="$newFile"/"$albumFolder"
 		if [[ ! -d "$newFile" ]]; then
 			mkdir "$newFile"
-			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!" && exit 1 # Simple error checking
+			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!"; exit 1 # Simple error checking
 		fi
-		newFile="$newFile""$fileName"
+		newFile="$newFile"/"$fileName"
 		;;
 		*)
 		debug "l2" "A fatal error has occurred! Unknown preserve level: $preserveLevel!"
@@ -362,6 +367,12 @@ function converterLoop() {
 	
 	for songFile in "${convertedPaths[@]}"
 	do
+		#if [[ ! -f "$songFile" ]]; then
+		#	#echo "songFile: $songFile"
+		#	debug "l2" "WARNING: could not find file: $songFile"
+		#	continue
+		#fi
+		
 		currentFile="$(outputFilename "$songFile")"
 		# If anyone ever asks why I love functions, I will show them this. 
 		# The function right here is the reason I love programming (or scripting, to be more specific)
@@ -372,7 +383,8 @@ function converterLoop() {
 ### Main Script
 
 processArgs "$@"
-checkRequirements "ffmpeg" "libmp3lame0" #"moreutils"
+#testImport
+checkRequirements "ffmpeg" #"libmp3lame0" #"moreutils"
 [[ -z $overwrite ]] && ffmpegOptions="$ffmpegOptions ""-y"
 
 # Error checking for outputFolder should only trigger if it is not a valid directory
