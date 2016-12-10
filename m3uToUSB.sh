@@ -183,11 +183,11 @@ function processArgs() {
 			;;
 			-p|--preserve)
 			case "$2" in
-				a*|A*)
-				true # Default, nothing to be done
-				;;
 				b*|B*|album|Album)
 				preserveLevel="album"
+				;;
+				a*|A*)
+				true # Default, nothing to be done
 				;;
 				n*|N*)
 				preserveLevel="none"
