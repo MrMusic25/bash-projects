@@ -4,6 +4,14 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.0
+# - Solved all my problems with one line. Added a dependency, but THE SCRIPT WORKS NOW!
+# - All other changes are classified as minor text fixes
+# - Added unlisted option --test-import to test importing and filenames, see testImport()
+# - Didn't add it earlier, but timeout is disabled until I have time to get it working (it was giving me weird errors)
+# - -c option won't edit song titles that don't start with a number
+# - Added delta conversion, once againt a much easier implementation than I remember on Powershell
+#
 # v1.0.1
 # - Small changes, forgot to run it through shellcheck
 # - for loop in processArgs() seems to be preventing it from working now, update to this will come tomorrow
@@ -51,8 +59,9 @@
 #   ~ Copy both to output folder...?
 # - Display percentage done every 15 or 30 seconds, so user sees progress (hopefully not an async process...)
 #   ~ Possibly get some file conversion time averages and estimate time to completion?
+# - BIG ONE: If song exists, skip it
 #
-# v1.0.1, 04 Dec. 2016 02:39 PST
+# v1.1.0, 10 Dec. 2016 14:03 PST
 
 ### Variables
 
@@ -67,7 +76,6 @@ preserveLevel="artist" # Artist folder will be saved by default. Also works with
 ffmpegOptions="" # Random options to be thrown in 
 timeoutVal="120s" # Time to wait before assuming a conversion has failed
 numberDelimiter=' ' # Defaults to a space, but can be changed by user if needed
-#IFS='' # Testing, remove later
 
 ### Functions
 
@@ -91,17 +99,22 @@ function convertSong() {
 		bitrate="$bitrate""k"
 	fi
 	
+	# Check to see if file exists already; delta conversion
+	if [[ -f "$2" ]]; then
+		debug "File $2 already exists! Skipping..."
+		return 0
+	fi
+	
 	# Warn user of unconvertible files
 	if [[ "$1" == *.m4p ]]; then
 		debug "l2" "WARNING: File $1 contains DRM! This file cannot be converted an will be copied instead!"
-		cp "$1" "$(echo "$2" | rev | cut -d'/' -f1 --complement | rev)"
+		cp "$1" "$2"
 		return $?
 	fi
 	
 	# If song is already MP3, copy instead of trying to convert
-	if [[ "$1" == *.mp3 || "$1" == *.MP3 ]]; then
-		debug "Copying $1 to $2..."
-		cp "$1" "$(echo "$2" | rev | cut -d'/' -f1 --complement | rev)"
+	if [[ "$1" == *.mp3 ]]; then
+		cp "$1" "$2"
 		return $?
 	fi
 	
@@ -111,6 +124,7 @@ function convertSong() {
 	if [[ $value -ne 0 ]]; then
 		debug "l2" "An error ocurred while converting $1 . Exit status: $value"
 	fi
+	return "$value"
 }
 
 function displayHelp() {
@@ -187,7 +201,18 @@ function processArgs() {
 			noNumbers="true"
 			if [[ $2 == \'* ]]; then # Starts with a '
 				numberDelimiter=$2 # Quotes might break this one, needs testing
+				shift
 			fi
+			;;
+			--test-import|--testImport)
+			if [[ -z $2 ]]; then
+				debug "l2" "ERROR: No file given to test importing!"
+				displayHelp
+				exit 1
+			fi
+			m3uFile="$2"
+			testImport
+			exit 0
 			;;
 			-d|--delete)
 			deleteMode="1" # If var is present, run deleteOldSongs(). This value could technically be anything
@@ -253,6 +278,8 @@ function importM3U() {
 	# http://stackoverflow.com/questions/21121562/shell-adding-string-to-an-array
 	
 	announce "Now preparing files for conversion..." "This process may take a minute depending on CPU power and playlist size"
+	dos2unix "$m3uFile"
+	
 	while read -r line
 	do
 		[[ "$line" == \#* ]] && continue # Skip the line if it starts with a '#'
@@ -295,15 +322,8 @@ function testImport() {
 	for items in "${convertedPaths[@]}"
 	do
 		echo "$items"
-	done
-	
-	pause
-	echo " "
-	echo "Showing whether each item is a file..."
-	for itemss in "${convertedPaths[@]}"
-	do
-		printf "Is %s a file?:" "$itemss"
-		if [[ -f "$itemss" ]]; then
+		printf "Is it a file? "
+		if [[ -f "$items" ]]; then
 			printf "True\n"
 		else
 			printf "False\n"
@@ -333,10 +353,11 @@ function outputFilename() {
 	# Just to be sure...
 	[[ -z $1 ]] && debug "ERROR: No argument supplied to outputFilename!" && return
 	
+	# First, we create the variables. Then, we use them based on user decision
 	artistFolder="$(echo "$1" | rev | cut -d'/' -f3 | rev)"
 	albumFolder="$(echo "$1" | rev | cut -d'/' -f2 | rev)"
 	fileName="$(echo "$1" | rev | cut -d'/' -f 1 | rev | cut -d'.' -f1)"".mp3" # Wasted cycles, but who cares with today's processors?
-	[[ ! -z $noNumbers ]] && fileName="$(echo "$fileName" | cut -d '$numberDelimiter' -f1 --complement)" # I was gonna save this for a later date, but the implementation was simple
+	[[ ! -z $noNumbers ]] && [[ "$fileName" == [0-9]* ]] && fileName="$(echo "$fileName" | cut -d '$numberDelimiter' -f1 --complement)" # I was gonna save this for a later date, but the implementation was simple
 	
 	case "$preserveLevel" in
 		none)
@@ -382,11 +403,11 @@ function converterLoop() {
 	
 	for songFile in "${convertedPaths[@]}"
 	do
-		#if [[ ! -f "$songFile" ]]; then
-		#	#echo "songFile: $songFile"
-		#	debug "l2" "WARNING: could not find file: $songFile"
-		#	continue
-		#fi
+		if [[ ! -f "$songFile" ]]; then
+			#echo "songFile: $songFile"
+			debug "l2" "WARNING: could not find file: $songFile"
+			continue
+		fi
 		
 		currentFile="$(outputFilename "$songFile")"
 		# If anyone ever asks why I love functions, I will show them this. 
@@ -398,14 +419,14 @@ function converterLoop() {
 ### Main Script
 
 processArgs "$@"
-testImport
-checkRequirements "ffmpeg" #"libmp3lame0" #"moreutils"
+#testImport # This line is used for debugging. You can also use the secret --test-import option to do this
+checkRequirements "ffmpeg" "dos2unix" #"libmp3lame0" #"moreutils"
 [[ -z $overwrite ]] && ffmpegOptions="$ffmpegOptions ""-y"
 
 # Error checking for outputFolder should only trigger if it is not a valid directory
 if [[ ! -d "$outputFolder" ]]; then
 	debug "l2" "ERROR: $outputFolder is not a directory!"
-	getUserAnswer "Would you like to attempt to make this directory? Take caution if so"
+	getUserAnswer "Would you like to attempt to make this directory? (Be careful!)"
 	case $? in
 		0)
 		debug "Attempting to create directory..."
