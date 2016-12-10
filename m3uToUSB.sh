@@ -4,6 +4,9 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.1
+# - Functional changes; copying works, but conversion does not
+#
 # v1.1.0
 # - Solved all my problems with one line. Added a dependency, but THE SCRIPT WORKS NOW!
 # - All other changes are classified as minor text fixes
@@ -61,7 +64,7 @@
 #   ~ Possibly get some file conversion time averages and estimate time to completion?
 # - BIG ONE: If song exists, skip it
 #
-# v1.1.0, 10 Dec. 2016 14:03 PST
+# v1.1.1, 10 Dec. 2016 15:31 PST
 
 ### Variables
 
@@ -119,7 +122,7 @@ function convertSong() {
 	fi
 	
 	#timeout --foreground -k "$timeoutVal" 
-	ffmpeg -i "$1" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$ffmpegOptions" "$2"
+	ffmpeg "$ffmpegOptions" -i "$1" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$2"
 	value=$?
 	if [[ $value -ne 0 ]]; then
 		debug "l2" "An error ocurred while converting $1 . Exit status: $value"
@@ -183,7 +186,7 @@ function processArgs() {
 				a*|A*)
 				true # Default, nothing to be done
 				;;
-				b*|B*)
+				b*|B*|album|Album)
 				preserveLevel="album"
 				;;
 				n*|N*)
@@ -421,7 +424,13 @@ function converterLoop() {
 processArgs "$@"
 #testImport # This line is used for debugging. You can also use the secret --test-import option to do this
 checkRequirements "ffmpeg" "dos2unix" #"libmp3lame0" #"moreutils"
-[[ -z $overwrite ]] && ffmpegOptions="$ffmpegOptions ""-y"
+if [[ -z $overwrite ]]; then 
+	if [[ -z $ffmpegOptions ]]; then
+		ffmpegOptions="-y"
+	else
+		ffmpegOptions="$ffmpegOptions""-y"
+	fi
+fi
 
 # Error checking for outputFolder should only trigger if it is not a valid directory
 if [[ ! -d "$outputFolder" ]]; then
