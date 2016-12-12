@@ -4,6 +4,10 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.2
+# - Added folderTest() because my current error checking for files was producing too many errors
+# - Implemented above function
+#
 # v1.1.1
 # - Functional changes; copying works, but conversion does not
 #
@@ -64,7 +68,7 @@
 #   ~ Possibly get some file conversion time averages and estimate time to completion?
 # - BIG ONE: If song exists, skip it
 #
-# v1.1.1, 10 Dec. 2016 15:31 PST
+# v1.1.2, 11 Dec. 2016 17:47 PST
 
 ### Variables
 
@@ -102,6 +106,20 @@ function convertSong() {
 		bitrate="$bitrate""k"
 	fi
 	
+	# Complain if there are not enough arguments
+	if [[ "$#" -ne 2 ]]; then
+		if [[ -z $1 ]]; then
+			debug "l2" "FATAL: No arguments present for convertSong()! Returning..."
+			return
+		elif [[ -z $2 ]]; then
+			debug "l2" "FATAL: Only one argument given, $1 ! Returning..."
+			return
+		else
+			debug "l2" "ERROR: More than two arguments given!"
+			debug "l2" "Attempting to run with 1 = $1, 2 = $2"
+		fi
+	fi
+	
 	# Check to see if file exists already; delta conversion
 	if [[ -f "$2" ]]; then
 		debug "File $2 already exists! Skipping..."
@@ -109,20 +127,22 @@ function convertSong() {
 	fi
 	
 	# Warn user of unconvertible files
-	if [[ "$1" == *.m4p ]]; then
+	if [[ "$1" == *m4p ]]; then
 		debug "l2" "WARNING: File $1 contains DRM! This file cannot be converted an will be copied instead!"
 		cp "$1" "$2"
 		return $?
 	fi
 	
 	# If song is already MP3, copy instead of trying to convert
-	if [[ "$1" == *.mp3 ]]; then
+	if [[ "$1" == *mp3 ]]; then
+		debug "l5" "$1 is an MP3, copying instead of converting"
 		cp "$1" "$2"
 		return $?
 	fi
 	
+	debug "l5" "Converting $1 to $2"
 	#timeout --foreground -k "$timeoutVal" 
-	ffmpeg "$ffmpegOptions" -i "$1" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$2"
+	ffmpeg "$ffmpegOptions" -i "$1" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$2" &>/dev/null
 	value=$?
 	if [[ $value -ne 0 ]]; then
 		debug "l2" "An error ocurred while converting $1 . Exit status: $value"
@@ -370,7 +390,8 @@ function outputFilename() {
 		newFile="$outputFolder"/"$artistFolder"
 		if [[ ! -d "$newFile" ]]; then
 			mkdir "$newFile"
-			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!"; exit 1 # Simple error checking
+			#[[ "$#" -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!" # Simple error checking
+			folderTest "$newFile"
 		fi
 		newFile="$newFile"/"$fileName"
 		;;
@@ -379,14 +400,14 @@ function outputFilename() {
 		newFile="$outputFolder"/"$artistFolder"
 		if [[ ! -d "$newFile" ]]; then
 			mkdir "$newFile"
-			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!"; exit 1 # Simple error checking
+			folderTest "$newFile"
 		fi
 		
 		# Now, check album folder
 		newFile="$newFile"/"$albumFolder"
 		if [[ ! -d "$newFile" ]]; then
 			mkdir "$newFile"
-			[[ $# -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!"; exit 1 # Simple error checking
+			folderTest "$newFile"
 		fi
 		newFile="$newFile"/"$fileName"
 		;;
@@ -417,6 +438,12 @@ function converterLoop() {
 		# The function right here is the reason I love programming (or scripting, to be more specific)
 		convertSong "$songFile" "$currentFile"
 	done
+}
+
+function folderTest() {
+	if [[ ! -d "$1" ]]; then
+		debug "l2" "$1 is not a directory! mkdir failed, or insufficient permissions!"
+	fi
 }
 
 ### Main Script
