@@ -4,6 +4,11 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.3
+# - clean-numbers option is tested and works (now)
+# - Small change to how outputDirectory is evaluated
+# - Added fileTest() to more easily check if file conversion was successful, along with calls
+#
 # v1.1.2
 # - Added folderTest() because my current error checking for files was producing too many errors
 # - Implemented above function
@@ -67,8 +72,9 @@
 # - Display percentage done every 15 or 30 seconds, so user sees progress (hopefully not an async process...)
 #   ~ Possibly get some file conversion time averages and estimate time to completion?
 # - BIG ONE: If song exists, skip it
+# - reconvert() - Add "failed" files to an array, and try to convert them again in case there was a weird error
 #
-# v1.1.2, 11 Dec. 2016 17:47 PST
+# v1.1.3, 12 Dec. 2016 00:21 PST
 
 ### Variables
 
@@ -380,7 +386,7 @@ function outputFilename() {
 	artistFolder="$(echo "$1" | rev | cut -d'/' -f3 | rev)"
 	albumFolder="$(echo "$1" | rev | cut -d'/' -f2 | rev)"
 	fileName="$(echo "$1" | rev | cut -d'/' -f 1 | rev | cut -d'.' -f1)"".mp3" # Wasted cycles, but who cares with today's processors?
-	[[ ! -z $noNumbers ]] && [[ "$fileName" == [0-9]* ]] && fileName="$(echo "$fileName" | cut -d '$numberDelimiter' -f1 --complement)" # I was gonna save this for a later date, but the implementation was simple
+	[[ ! -z $noNumbers ]] && [[ "$fileName" == [0-9]* ]] && fileName="$(echo "$fileName" | cut -d "$numberDelimiter" -f1 --complement)" # I was gonna save this for a later date, but the implementation was simple
 	
 	case "$preserveLevel" in
 		none)
@@ -437,13 +443,24 @@ function converterLoop() {
 		# If anyone ever asks why I love functions, I will show them this. 
 		# The function right here is the reason I love programming (or scripting, to be more specific)
 		convertSong "$songFile" "$currentFile"
+		fileTest "$currentFile" # Only really reports the error... Better logging this way
 	done
 }
 
 function folderTest() {
 	if [[ ! -d "$1" ]]; then
 		debug "l2" "$1 is not a directory! mkdir failed, or insufficient permissions!"
+		return 1
 	fi
+	return 0
+}
+
+function fileTest() {
+	if [[ ! -f "$1" ]]; then
+		debug "l2" "WARNING: File $1 could not be found, conversion failure!"
+		return 1
+	fi
+	return 0
 }
 
 ### Main Script
@@ -467,6 +484,7 @@ if [[ ! -d "$outputFolder" ]]; then
 		0)
 		debug "Attempting to create directory..."
 		mkdir "$outputFolder"
+		folderTest "$outputFolder"
 		value=$?
 		case $value in
 			0)
