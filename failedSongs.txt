@@ -1,0 +1,65 @@
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Abbey Road/07 Here Comes the Sun.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Abbey Road/13 She Came in Through the Bathroom.mp3
+/mnt/g/iTunes/iTunes Media/Music/Boston/Boston/06 Hitch a Ride.mp3
+/mnt/g/iTunes/iTunes Media/Music/Avenged Sevenfold/City of Evil/01 Beast And The Harlot.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Desperado/03 Out of Control.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Desperado/06 Certain Kind of Fool.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Desperado/07 Doolin-Dalton (instrumental).mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Eagles/04 Most of Us Are Sad.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Eagles/07 Take the Devil.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Eagles Live/1-05 New Kid in Town.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Eagles Live/2-03 Take It to the Limit.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Eagles Live/2-04 Doolin-Dalton (reprise II).mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Eagles Live/2-08 Life in the Fast Lane.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Hell Freezes Over/04 Learn to Be Still.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Hell Freezes Over/08 Pretty Maids All in a Row.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Hell Freezes Over/13 In the City.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Hell Freezes Over/14 Life in the Fast Lane.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/Hotel California/05 Wasted Time (reprise).mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/01 Road of Resistance (feat. Dragonf.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/02 KARATE.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/03 Awadama Fever.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/04 YAVA!.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/05 Amore.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/06 Meta Taro.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/07 From Dusk Till Dawn.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/08 GJ!.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/09 Sis. Anger.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/10 No Rain, No Rainbow.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/11 Tales of The Destinies.mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/12 THE ONE - English ver..mp3
+/mnt/g/iTunes/iTunes Media/Music/BABYMETAL/METAL RESISTANCE/11 Tales of the Destinies_THE ONE.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/01 Tuscan Leather.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/02 Furthest Thing.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/04 Wu-Tang Forever.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/05 Own It.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/06 Worst Behavior.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/07 From Time (Feat. Jhene Aiko).mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/08 Hold On, We're Going Home (Feat..mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/09 Connect.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/10 The Language.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/11 305 To My City (Feat. Detail).mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/12 Too Much (Feat. Sampha).mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/13 Pound Cake_Paris Morton Music 2 (.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/14 Come Thru.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/15 All Me (Feat. Big Sean & 2 Chainz.mp3
+/mnt/g/iTunes/iTunes Media/Music/Drake/Nothing Was The Same/16 The Motion (Feat. Sampha).mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/One Of These Nights/01 One of These Nights.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/One Of These Nights/02 Too Many Hands.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/One Of These Nights/03 Hollywood Waltz.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/One Of These Nights/04 Journey of the Sorcerer.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/One of These Nights/06 Take It to the Limit.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/One Of These Nights/07 Visions.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/One Of These Nights/08 After the Thrill Is Gone.mp3
+/mnt/g/iTunes/iTunes Media/Music/Eagles/One Of These Nights/09 I Wish You Peace.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Please Please Me/03 Anna (Go to Him).mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Please Please Me/11 Do You Want to Know a Secret.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Please Please Me/12 A Taste of Honey.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Please Please Me/13 There's a Place.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Please Please Me/14 Twist and Shout.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Sgt. Pepper's Lonely Hearts Club Band/02 With a Little Help From My Friend.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Sgt. Pepper's Lonely Hearts Club Band/03 Lucy in the Sky With Diamonds.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Sgt. Pepper's Lonely Hearts Club Band/05 Fixing a Hole.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Sgt. Pepper's Lonely Hearts Club Band/07 Being for the Benefit of Mr. Kite.mp3
+/mnt/g/iTunes/iTunes Media/Music/The Beatles/Sgt. Pepper's Lonely Hearts Club Band/13 A Day in the Life.mp3
+/mnt/g/iTunes/iTunes Media/Music/Nightwish/Wishmaster/05 Two for Tragedy.mp3

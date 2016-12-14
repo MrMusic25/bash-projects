@@ -4,6 +4,9 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.4
+# - Changed some debugging messages to make reading the log easier
+#
 # v1.1.3
 # - clean-numbers option is tested and works (now)
 # - Small change to how outputDirectory is evaluated
@@ -80,6 +83,7 @@
 
 declare -a filePaths # Original paths from the m3u file
 declare -a convertedPaths # Paths that have been converted for use with win2UnixPath()
+declare -a failedSongs # Songs that fail to convert will be placed here, decide what to do with them later
 m3uFile="" # Self-explanatory
 outputFolder="" # I only put a comment here to make it look nice
 prefix="" # If the path needs to be changed
@@ -128,7 +132,7 @@ function convertSong() {
 	
 	# Check to see if file exists already; delta conversion
 	if [[ -f "$2" ]]; then
-		debug "File $2 already exists! Skipping..."
+		debug "l5" "File $2 already exists! Skipping..." # Was originally "l1", but changed to l5 because log was WAY too large after each run
 		return 0
 	fi
 	
@@ -431,11 +435,14 @@ function converterLoop() {
 	announce "Beginnning conversion progress!" "This will take a while depending on processor speed and playlist length." "This screen will only show errors, but will notify you when it is complete."
 	sleep 3
 	
+	shopt -s nocasematch
+	shopt -s nocaseglob
 	for songFile in "${convertedPaths[@]}"
 	do
 		if [[ ! -f "$songFile" ]]; then
 			#echo "songFile: $songFile"
-			debug "l2" "WARNING: could not find file: $songFile"
+			debug "l2" "WARNING: Source file not found: $songFile"
+			failedSongs+=("$songFile") # Place files not found in this array
 			continue
 		fi
 		
@@ -445,6 +452,8 @@ function converterLoop() {
 		convertSong "$songFile" "$currentFile"
 		fileTest "$currentFile" # Only really reports the error... Better logging this way
 	done
+	shopt -u nocasematch
+	shopt -u nocaseglob
 }
 
 function folderTest() {
@@ -461,6 +470,15 @@ function fileTest() {
 		return 1
 	fi
 	return 0
+}
+
+function outputFailures() {
+	printf "\n\nFailed songs from playlist %s:\n" "$(echo "$m3uFile" | rev | cut -d'/' -f1 | rev)" >> failedSongs.txt
+	for failure in "${failedSongs[@]}"
+	do
+		echo "$failure" >> failedSongs.txt
+	done
+	debug "l2" "List of failed songs has been output to $(pwd)/failedSongs.txt at user request!"
 }
 
 ### Main Script
@@ -519,6 +537,7 @@ fi
 # Ready to start converting. Import files, then loop!
 importM3U
 converterLoop
+outputFailures # More debugging
 
 announce "Script has completed successfully!" "Please consult log for any file that could not be converted!"
 
