@@ -4,6 +4,9 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.5
+# - processFailures() is ready for testing
+#
 # v1.1.4
 # - Changed some debugging messages to make reading the log easier
 # - Added outputFailures() function, outputs them to a file for debugging purposes
@@ -79,7 +82,7 @@
 # - BIG ONE: If song exists, skip it
 # - reconvert() - Add "failed" files to an array, and try to convert them again in case there was a weird error
 #
-# v1.1.4, 13 Dec. 2016 18:14 PST
+# v1.1.5, 14 Dec. 2016 00:01 PST
 
 ### Variables
 
@@ -95,6 +98,7 @@ preserveLevel="artist" # Artist folder will be saved by default. Also works with
 ffmpegOptions="" # Random options to be thrown in 
 timeoutVal="120s" # Time to wait before assuming a conversion has failed
 numberDelimiter=' ' # Defaults to a space, but can be changed by user if needed
+total=0 # Total number of songs
 
 ### Functions
 
@@ -319,6 +323,7 @@ function importM3U() {
 	do
 		[[ "$line" == \#* ]] && continue # Skip the line if it starts with a '#'
 		filePaths+=("$line")
+		((total++))
 	done < "${m3uFile}"
 	
 	# Now that the lines are imported, make sure they are all Linux-friendly
@@ -454,8 +459,6 @@ function converterLoop() {
 		convertSong "$songFile" "$currentFile"
 		fileTest "$currentFile" # Only really reports the error... Better logging this way
 	done
-	shopt -u nocasematch
-	shopt -u nocaseglob
 }
 
 function folderTest() {
@@ -491,8 +494,6 @@ function determinePath() {
 	container="$(echo "$1" | rev | cut -d'/' -f1-3 --complement | rev)"
 	extension="$(echo "$fileName" | rev | cut -d'.' -f1 | rev)" # the rev's in this one make sure periods in filename don't get cut
 	fileName="$(echo "$fileName" | rev | cut -d'.' -f1 --complement | rev)" # Same reason as above
-	
-	printf "Path: %s\n" "$paths"
 	
 	# First, check container
 	if [[ -d "$container" ]]; then
@@ -548,7 +549,7 @@ function determinePath() {
 				if [[ -f "$testPath" ]]; then
 					# File was found in 'found' folder!
 					echo "$testPath"
-					return 1
+					return 0
 				else
 					false # Still an issue with filename, directory is good though so move on
 				fi
@@ -585,6 +586,24 @@ function processFailures() {
 	announce "Now attempting to process files that gave errors during conversion!" "Most of these just need their paths fixed, but other failures will be reported."
 	sleep 3
 	
+	declare -a failedList
+	for song in "${failedSongs[@]}"
+	do
+		failedList+="$(determinePath "$song")"
+	done
+	
+	for songFile in "${failedSongs[@]}"
+	do
+		if [[ "$songFile" == *ERROR:* ]]; then
+			continue # Just in case something got through
+		fi
+		
+		currentFile="$(outputFilename "$songFile")"
+		# If anyone ever asks why I love functions, I will show them this. 
+		# The function right here is the reason I love programming (or scripting, to be more specific)
+		convertSong "$songFile" "$currentFile"
+		fileTest "$currentFile" # Only really reports the error... Better logging this way
+	done
 }
 
 ### Main Script
@@ -603,7 +622,7 @@ fi
 # Error checking for outputFolder should only trigger if it is not a valid directory
 if [[ ! -d "$outputFolder" ]]; then
 	debug "l2" "ERROR: $outputFolder is not a directory!"
-	getUserAnswer "Would you like to attempt to make this directory? (Be careful!)"
+	getUserAnswer "n" "Would you like to attempt to make this directory? (Be careful!)"
 	case $? in
 		0)
 		debug "Attempting to create directory..."
@@ -643,7 +662,12 @@ fi
 # Ready to start converting. Import files, then loop!
 importM3U
 converterLoop
-outputFailures # More debugging
+#outputFailures # More debugging
+
+if [[ "${#failedSongs[@]}" -ne 0 ]]; then
+	debug "l2" "Attempting to convert failed songs..."
+	processFailures
+fi
 
 announce "Script has completed successfully!" "Please consult log for any file that could not be converted!"
 
