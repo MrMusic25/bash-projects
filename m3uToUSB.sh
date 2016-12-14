@@ -6,6 +6,8 @@
 # Changes:
 # v1.1.4
 # - Changed some debugging messages to make reading the log easier
+# - Added outputFailures() function, outputs them to a file for debugging purposes
+# - Added determinePath(), basically a condensed version of fileVerifier.sh
 #
 # v1.1.3
 # - clean-numbers option is tested and works (now)
@@ -77,7 +79,7 @@
 # - BIG ONE: If song exists, skip it
 # - reconvert() - Add "failed" files to an array, and try to convert them again in case there was a weird error
 #
-# v1.1.3, 12 Dec. 2016 00:21 PST
+# v1.1.4, 13 Dec. 2016 18:14 PST
 
 ### Variables
 
@@ -479,6 +481,110 @@ function outputFailures() {
 		echo "$failure" >> failedSongs.txt
 	done
 	debug "l2" "List of failed songs has been output to $(pwd)/failedSongs.txt at user request!"
+}
+
+function determinePath() {
+	# Now, try to 'find' these files
+	artistFolder="$(echo "$1" | rev | cut -d'/' -f3 | rev)"
+	albumFolder="$(echo "$1" | rev | cut -d'/' -f2 | rev)"
+	fileName="$(echo "$1" | rev | cut -d'/' -f1 | rev)"
+	container="$(echo "$1" | rev | cut -d'/' -f1-3 --complement | rev)"
+	extension="$(echo "$fileName" | rev | cut -d'.' -f1 | rev)" # the rev's in this one make sure periods in filename don't get cut
+	fileName="$(echo "$fileName" | rev | cut -d'.' -f1 --complement | rev)" # Same reason as above
+	
+	printf "Path: %s\n" "$paths"
+	
+	# First, check container
+	if [[ -d "$container" ]]; then
+		true
+	else
+		debug "l2" "ERROR: Bad folder container: $container"
+		return 1
+	fi
+		
+	# Artist folder
+	testPath="$container"/"$artistFolder"
+	if [[ -d "$testPath" ]]; then
+		true
+	else
+		# Problem with the artist folder (rare)
+		# Now see if running through 'title' makes it work
+		artistFolder="$(echo -e "$artistFolder" | sed -r 's/\<./\U&/g')"
+		testPath="$container"/"$artistFolder"
+		if [[ -d "$testPath" ]]; then
+			true
+		else
+			debug "l2" "ERROR: Could not locate artist folder: $artistFolder !"
+			return 1
+		fi
+	fi
+	
+	# Album folder
+	testPath="$container"/"$artistFolder"/"$albumFolder"
+	if [[ -d "$testPath" ]]; then
+		true
+	else
+		# Problem with album folder (most common)
+		# Now see if running through 'title' makes it work
+		albumFolder="$(echo -e "$albumFolder" | sed -r 's/\<./\U&/g')"
+		testPath="$container"/"$artistFolder"/"$albumFolder"
+		if [[ -d "$testPath" ]]; then
+			# Worked, now see if fixed album+fileName works
+			testPath="$testPath"/"$fileName"."$extension"
+			if [[ -f "$testPath" ]]; then
+				echo "$testPath"
+				return 0
+			else
+				false # Now folder is present, but filename may be wrong
+			fi
+		else
+			# Folder still not found, multiple errors maybe?
+			# See if 'find' can find folder
+			testPath="$(find "$container/$artistFolder" -iname "$(echo "$albumFolder" | cut -d' ' -f1)*" -print0)"
+			if [[ -d "$testPath" ]]; then
+				# Find was able to find the folder in question
+				albumFolder="$(echo "$testPath" | rev | cut -d'/' -f1 | rev)"
+				testPath="$container"/"$artistFolder"/"$albumFolder"/"$fileName"."$extension"
+				if [[ -f "$testPath" ]]; then
+					# File was found in 'found' folder!
+					echo "$testPath"
+					return 1
+				else
+					false # Still an issue with filename, directory is good though so move on
+				fi
+			else
+				debug "l2" "ERROR: Album folder $albumFolder could not be found in parent $artistFolder !"
+				return 1
+			fi
+		fi
+	fi
+	
+	# If you made it this far, only option left is bad filename
+	# First, attempt to fix case (usually the issue)
+	fileName="$(echo -e "$fileName" | sed -r 's/\<./\U&/g')"
+	testPath="$container"/"$artistFolder"/"$albumFolder"/"$fileName"."$extension"
+	if [[ -f "$testPath" ]]; then
+		echo "$testPath"
+		return 0
+	else
+		# Fixing case of file did not work, now try to find based on first word or number
+		testPath="$(find "$container/$artistFolder/$albumFolder" -iname "$(echo "$fileName" | cut -d' ' -f1)*" -print0)"
+		if [[ -f "$testPath" ]]; then
+			# Hope you got the right file!
+			echo "$testPath"
+			return 0
+		else
+			# File could not be found anywhere
+			debug "l2" "FATAL: File could not be located: $testPath , giving up on it!"
+			return 1
+		fi
+	fi
+}
+
+function processFailures() {
+	announce "Now attempting to process files that gave errors during conversion!" "Most of these just need their paths fixed, but other failures will be reported."
+	sleep 3
+	
 }
 
 ### Main Script

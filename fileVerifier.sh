@@ -57,7 +57,7 @@ do
 	fileName="$(echo "$paths" | rev | cut -d'/' -f1 | rev)"
 	container="$(echo "$paths" | rev | cut -d'/' -f1-3 --complement | rev)"
 	extension="$(echo "$fileName" | rev | cut -d'.' -f1 | rev)" # the rev's in this one make sure periods in filename don't get cut
-	fileName="$(echo "$fileName" | rev | cut -d'.' -f1 --complement | rev)"
+	fileName="$(echo "$fileName" | rev | cut -d'.' -f1 --complement | rev)" # Same reason as above
 	
 	printf "Path: %s\n" "$paths"
 	
