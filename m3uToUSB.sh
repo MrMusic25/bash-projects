@@ -4,6 +4,9 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.7
+# - Small change so that Song titles with a '.' in the name wouldn't get cut off (07.Mz. Hyde.mp3 -> 07 Mz.mp3)
+#
 # v1.1.6
 # - Testing shows everything works properly, Windows has some errors though... Assuming everything is fine though
 # - First major release! Everything works!
@@ -85,8 +88,9 @@
 #   ~ Possibly get some file conversion time averages and estimate time to completion?
 # - BIG ONE: If song exists, skip it
 # - reconvert() - Add "failed" files to an array, and try to convert them again in case there was a weird error
+# - Make it so CTRL+C adds current song to failedSongs[], then passes signal to ffmpeg (for broken conversions)
 #
-# v1.1.6, 14 Dec. 2016 02:20 PST
+# v1.1.7, 16 Dec. 2016 16:10 PST
 
 ### Variables
 
@@ -401,7 +405,7 @@ function outputFilename() {
 	# First, we create the variables. Then, we use them based on user decision
 	artistFolder="$(echo "$1" | rev | cut -d'/' -f3 | rev)"
 	albumFolder="$(echo "$1" | rev | cut -d'/' -f2 | rev)"
-	fileName="$(echo "$1" | rev | cut -d'/' -f 1 | rev | cut -d'.' -f1)"".mp3" # Wasted cycles, but who cares with today's processors?
+	fileName="$(echo "$1" | rev | cut -d'/' -f1 | cut -d'.' -f1 --complement | rev)"".mp3" # Wasted cycles, but who cares with today's processors?
 	[[ ! -z $noNumbers ]] && [[ "$fileName" == [0-9]* ]] && fileName="$(echo "$fileName" | cut -d "$numberDelimiter" -f1 --complement)" # I was gonna save this for a later date, but the implementation was simple
 	
 	case "$preserveLevel" in
@@ -523,8 +527,14 @@ function determinePath() {
 		if [[ -d "$testPath" ]]; then
 			true
 		else
-			debug "l2" "ERROR: Could not locate artist folder: $artistFolder !"
-			return 1
+			# No cutting the name here, might cause errors
+			testPath="$(find "$container" -iname "$artistFolder*" -print0)"
+			if [[ -d "$testPath" ]]; then
+				artistFolder="$(echo "$testPath" | rev | cut -d'/' -f1 | rev)"
+			else
+				debug "l2" "ERROR: Could not locate artist folder: $artistFolder !"
+				return 1
+			fi
 		fi
 	fi
 	
