@@ -89,6 +89,9 @@
 # - BIG ONE: If song exists, skip it
 # - reconvert() - Add "failed" files to an array, and try to convert them again in case there was a weird error
 # - Make it so CTRL+C adds current song to failedSongs[], then passes signal to ffmpeg (for broken conversions)
+# - Create a file called ~/.m2uSettings.conf that gets preloaded.
+#   ~ Keeps settings like prefix, output folder, defaults, etc.
+# - For -d|--delete - Copy over current m3u, and compare m3u files to see what changed, and delete changes
 #
 # v1.1.7, 16 Dec. 2016 16:10 PST
 
