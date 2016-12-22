@@ -92,6 +92,10 @@
 # - Create a file called ~/.m2uSettings.conf that gets preloaded.
 #   ~ Keeps settings like prefix, output folder, defaults, etc.
 # - For -d|--delete - Copy over current m3u, and compare m3u files to see what changed, and delete changes
+# - Make 'secret' or 'unlisted' options only double options and list them in displayHelp()
+#   ~ e.g: only --update instead of -u|--update
+#   ~ Useful for things like minor script options. Also useful in other scripts
+#   ~ This almost makes it worth figuring out manpages...
 #
 # v1.1.7, 16 Dec. 2016 16:10 PST
 
