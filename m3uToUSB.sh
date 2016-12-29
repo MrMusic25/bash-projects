@@ -4,8 +4,13 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.8
+# - Some usage warnings for user
+# - Changed the way existing files are handled, if preserve=none and overwrite is off
+# - This change effectively stop overwriting same titled songs from different artists when mode is none. Statistically should be 100% effective
+#
 # v1.1.7
-# - Small change so that Song titles with a '.' in the name wouldn't get cut off (07.Mz. Hyde.mp3 -> 07 Mz.mp3)
+# - Small change so that Song titles with a '.' in the name wouldn't get cut off (07 Mz. Hyde.mp3 -> 07 Mz.mp3)
 #
 # v1.1.6
 # - Testing shows everything works properly, Windows has some errors though... Assuming everything is fine though
@@ -97,7 +102,7 @@
 #   ~ Useful for things like minor script options. Also useful in other scripts
 #   ~ This almost makes it worth figuring out manpages...
 #
-# v1.1.7, 16 Dec. 2016 16:10 PST
+# v1.1.8, 28 Dec. 2016 17:28 PST
 
 ### Variables
 
@@ -151,33 +156,39 @@ function convertSong() {
 			debug "l2" "Attempting to run with 1 = $1, 2 = $2"
 		fi
 	fi
-	
+	inputFile="$1"
+	outputFile="$2"
 	# Check to see if file exists already; delta conversion
-	if [[ -f "$2" ]]; then
-		debug "l5" "File $2 already exists! Skipping..." # Was originally "l1", but changed to l5 because log was WAY too large after each run
-		return 0
+	if [[ -f "$outputFile" ]]; then
+		if [[ "$preserveLevel" == "none" && ! -z $overwrite ]]; then
+			artistFolder="$(echo "$1" | rev | cut -d'/' -f3 | rev)"
+			inputFile="$artistFile"" - ""$inputfile" # Adds artist name to song title, along with ' - ' in between
+		else
+			debug "l5" "File $outputFile already exists! Skipping..." # Was originally "l1", but changed to l5 because log was WAY too large after each run
+			return 0
+		fi
 	fi
 	
 	# Warn user of unconvertible files
-	if [[ "$1" == *m4p ]]; then
-		debug "l2" "WARNING: File $1 contains DRM! This file cannot be converted an will be copied instead!"
-		cp "$1" "$2"
+	if [[ "$inputFile" == *m4p ]]; then
+		debug "l2" "WARNING: File $inputFile contains DRM! This file cannot be converted an will be copied instead!"
+		cp "$inputFile" "$outputFile"
 		return $?
 	fi
 	
 	# If song is already MP3, copy instead of trying to convert
-	if [[ "$1" == *mp3 ]]; then
-		debug "l5" "$1 is an MP3, copying instead of converting"
-		cp "$1" "$2"
+	if [[ "$inputFile" == *mp3 ]]; then
+		debug "l5" "$inputFile is an MP3, copying instead of converting"
+		cp "$inputFile" "$outputFile"
 		return $?
 	fi
 	
-	debug "l5" "Converting $1 to $2"
+	debug "l5" "Converting $inputFile to $outputFile"
 	#timeout --foreground -k "$timeoutVal" 
-	ffmpeg "$ffmpegOptions" -i "$1" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$2" &>/dev/null
+	ffmpeg "$ffmpegOptions" -i "$inputFile" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$outputFile" &>/dev/null
 	value=$?
 	if [[ $value -ne 0 ]]; then
-		debug "l2" "An error ocurred while converting $1 . Exit status: $value"
+		debug "l2" "An error ocurred while converting $inputFile . Exit status: $value"
 	fi
 	return "$value"
 }
@@ -643,6 +654,11 @@ processArgs "$@"
 #testImport # This line is used for debugging. You can also use the secret --test-import option to do this
 checkRequirements "ffmpeg" "dos2unix" #"libmp3lame0" #"moreutils"
 if [[ -z $overwrite ]]; then 
+	# Warn user about accidentally overwriting files with -c set without -n
+	if [[ "$noNumbers" == "true" && "$preserveLevel" == "none" ]]; then
+		announce "WARNING: It is advised to run -c with -n when preserve level is set to none" "Otherwise, similar song titles might be overwritten" "Press CTRL+C now to fix this. Script will continue shortly."
+	fi
+	
 	if [[ -z $ffmpegOptions ]]; then
 		ffmpegOptions="-y"
 	else
