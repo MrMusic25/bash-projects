@@ -161,8 +161,8 @@ function convertSong() {
 	# Check to see if file exists already; delta conversion
 	if [[ -f "$outputFile" ]]; then
 		if [[ "$preserveLevel" == "none" && ! -z $overwrite ]]; then
-			artistFolder="$(echo "$1" | rev | cut -d'/' -f3 | rev)"
-			inputFile="$artistFile"" - ""$inputfile" # Adds artist name to song title, along with ' - ' in between
+			artistFolder="$(echo "$inputFile" | rev | cut -d'/' -f3 | rev)"
+			outputFile="$artistFolder"" - ""$inputFile" # Adds artist name to song title, along with ' - ' in between
 		else
 			debug "l5" "File $outputFile already exists! Skipping..." # Was originally "l1", but changed to l5 because log was WAY too large after each run
 			return 0
