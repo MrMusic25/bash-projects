@@ -4,6 +4,10 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.9
+# - Playlist will now place a 'hidden' copy of the current playlist in the output folder
+# - Not used right now, but will likely be implemented later
+#
 # v1.1.8
 # - Some usage warnings for user
 # - Changed the way existing files are handled, if preserve=none and overwrite is off
@@ -102,7 +106,7 @@
 #   ~ Useful for things like minor script options. Also useful in other scripts
 #   ~ This almost makes it worth figuring out manpages...
 #
-# v1.1.8, 28 Dec. 2016 17:28 PST
+# v1.1.9, 29 Dec. 2016 00:21 PST
 
 ### Variables
 
@@ -364,6 +368,8 @@ function importM3U() {
 			convertedPaths+=("$(win2UnixPath "$path" "$w2uMode")")
 		fi
 	done
+	newFile=".""$(echo "$m3uFile" | rev | cut -d'/' -f1 | rev)"
+	cp "$m3uFile" "$outputFolder"/"$newFile" # Makes a copy of the current playlist, hidden, in the output folder
 }
 
 function testImport() {
