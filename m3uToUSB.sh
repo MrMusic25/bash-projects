@@ -4,6 +4,10 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.10
+# - Added displayProgress() so the user sees the actual progress, at specified intervals
+# - Didn't think this warrented changing the minor version, just the patch version
+#
 # v1.1.9
 # - Playlist will now place a 'hidden' copy of the current playlist in the output folder
 # - Not used right now, but will likely be implemented later
@@ -106,7 +110,7 @@
 #   ~ Useful for things like minor script options. Also useful in other scripts
 #   ~ This almost makes it worth figuring out manpages...
 #
-# v1.1.9, 29 Dec. 2016 00:21 PST
+# v1.1.10, 30 Dec. 2016 15:02 PST
 
 ### Variables
 
@@ -124,6 +128,7 @@ timeoutVal="120s" # Time to wait before assuming a conversion has failed
 numberDelimiter=' ' # Defaults to a space, but can be changed by user if needed
 total=0 # Total number of songs
 songsConverted=0
+timeBetweenUpdates=60 # Time between progress updates, in seconds
 
 ### Functions
 
@@ -496,6 +501,7 @@ function converterLoop() {
 		then
 			((songsConverted++))
 		fi
+		displayProgress # Once again, on today's processors, this means nothing
 	done
 }
 
@@ -654,6 +660,24 @@ function processFailures() {
 			((fixedFailures++))
 		fi
 	done
+}
+
+function displayProgress() {
+	if [[ -z $firstUpdate ]]; then
+		printf "Script is now working on converting %s songs and will display updates every ~%s seconds\n" "$total" "$timeBetweenUpdates"
+		firstUpdate="done"
+		lastUpdate="$SECONDS"
+		startTime="$SECONDS"
+		oldSongsConverted=1 # Because this runs after running the first conversion
+		return
+	fi
+	
+	currentTime="$SECONDS"
+	if [[ '$currentTime - $lastUpdate' -ge "$timeBetweenUpdates" ]]; then
+		printf "[%s/%s] Songs converted so far. %s songs converted in the past %s seconds.\n" "$songsConverted" "$total" "$(( songsConverted - oldSongsConverted ))" "$currentTime"
+		oldSongsConverted="$songsConverted"
+		lastUpdate="$currentTime"
+	fi
 }
 
 ### Main Script
