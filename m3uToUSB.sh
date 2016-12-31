@@ -4,6 +4,13 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.11
+# - Reverted changes from v1.1.8, existing songs need a new way to be handled with preserveLevel=none
+# - For now, everything will be treated as a delta conversion - I will make a permanenent solution later
+# - ffmpeg gave me an error during testing, so I changed the way it converts
+# - Didn't put the right time in for displayProgress(), fixed now!
+# - Minor adjustments
+#
 # v1.1.10
 # - Added displayProgress() so the user sees the actual progress, at specified intervals
 # - Didn't think this warrented changing the minor version, just the patch version
@@ -110,7 +117,7 @@
 #   ~ Useful for things like minor script options. Also useful in other scripts
 #   ~ This almost makes it worth figuring out manpages...
 #
-# v1.1.10, 30 Dec. 2016 15:02 PST
+# v1.1.11, 30 Dec. 2016 17:12 PST
 
 ### Variables
 
@@ -123,7 +130,7 @@ prefix="" # If the path needs to be changed
 w2uMode="" # Change this to 'upper' or 'cut' if needed, see win2UnixPath() documentation for more info
 bitrate=128 # Explanatory
 preserveLevel="artist" # Artist folder will be saved by default. Also works with album, or none
-ffmpegOptions="" # Random options to be thrown in 
+#ffmpegOptions="" # Random options to be thrown in 
 timeoutVal="120s" # Time to wait before assuming a conversion has failed
 numberDelimiter=' ' # Defaults to a space, but can be changed by user if needed
 total=0 # Total number of songs
@@ -169,15 +176,15 @@ function convertSong() {
 	outputFile="$2"
 	# Check to see if file exists already; delta conversion
 	if [[ -f "$outputFile" ]]; then
-		if [[ "$preserveLevel" == "none" && ! -z $overwrite ]]; then
-			artistFolder="$(echo "$inputFile" | rev | cut -d'/' -f3 | rev)"
-			fileName="$(echo "$outputFile" | rev | cut -d'/' -f1 | rev)"
-			container="$(echo "$outputFile" | rev | cut -d'/' -f1 --complement | rev)"
-			outputFile="$container"/"$artistFolder"" - ""$fileName" # Adds artist name to song title, along with ' - ' in between
-		else
+		#if [[ "$preserveLevel" == "none" && ! -z $overwrite ]]; then
+		#	artistFolder="$(echo "$inputFile" | rev | cut -d'/' -f3 | rev)"
+		#	fileName="$(echo "$outputFile" | rev | cut -d'/' -f1 | rev)"
+		#	container="$(echo "$outputFile" | rev | cut -d'/' -f1 --complement | rev)"
+		#	outputFile="$(echo "$container"/"$artistFolder"" - ""$fileName")" # Adds artist name to song title, along with ' - ' in between
+		#else
 			debug "l5" "File $outputFile already exists! Skipping..." # Was originally "l1", but changed to l5 because log was WAY too large after each run
 			return 0
-		fi
+		#fi
 	fi
 	
 	# Warn user of unconvertible files
@@ -196,10 +203,14 @@ function convertSong() {
 	
 	debug "l5" "Converting $inputFile to $outputFile"
 	#timeout --foreground -k "$timeoutVal" 
-	ffmpeg "$ffmpegOptions" -i "$inputFile" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$outputFile" &>/dev/null
+	if [[ -z $ffmpegOptions ]]; then
+		ffmpeg -i "$inputFile" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$outputFile" &>/dev/null
+	else
+		ffmpeg "$ffmpegOptions" -i "$inputFile" -codec:a libmp3lame -b:a "$bitrate" -id3v2_version 3 -write_id3v1 1 "$outputFile" &>/dev/null
+	fi
 	value=$?
 	if [[ $value -ne 0 ]]; then
-		debug "l2" "An error ocurred while converting $inputFile . Exit status: $value"
+		debug "l1" "An error ocurred while converting $inputFile . Exit status: $value"
 	fi
 	return "$value"
 }
@@ -481,6 +492,7 @@ function outputFilename() {
 function converterLoop() {
 	announce "Beginnning conversion progress!" "This will take a while depending on processor speed and playlist length." "This screen will only show errors, but will notify you when it is complete."
 	sleep 3
+	displayProgress # Initialize it, makes log look better and gets a better "start time"
 	
 	shopt -s nocasematch
 	shopt -s nocaseglob
@@ -668,13 +680,13 @@ function displayProgress() {
 		firstUpdate="done"
 		lastUpdate="$SECONDS"
 		startTime="$SECONDS"
-		oldSongsConverted=1 # Because this runs after running the first conversion
+		oldSongsConverted=0
 		return
 	fi
 	
 	currentTime="$SECONDS"
-	if [[ '$currentTime - $lastUpdate' -ge "$timeBetweenUpdates" ]]; then
-		printf "[%s/%s] Songs converted so far. %s songs converted in the past %s seconds.\n" "$songsConverted" "$total" "$(( songsConverted - oldSongsConverted ))" "$currentTime"
+	if [[ $(( currentTime - lastUpdate )) -ge "$timeBetweenUpdates" ]]; then
+		printf "[%s/%s] Songs converted so far. %s songs processed in the past %s seconds.\n" "$songsConverted" "$total" "$(( songsConverted - oldSongsConverted ))" "$(( currentTime - lastUpdate ))"
 		oldSongsConverted="$songsConverted"
 		lastUpdate="$currentTime"
 	fi
