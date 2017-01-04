@@ -97,25 +97,23 @@
 # - Initial commit
 #
 # TODO:
-# - -i | --include option - Output the m3u file to the top level directory when finished
 # - Great idea from this website to convert files in parallel, quick conversion! Requires ffmpeg, and moreutils
 #   ~ https://wiki.archlinux.org/index.php/Convert_Flac_to_Mp3
-# - No real reason for it, but let user change timeout val from commandline?
-#   ~ Easy implementation, but displayHelp gets pretty long
-# - Option to convert input m3u with w2u and output to a new m3u file
-#   ~ Copy both to output folder...?
-# - Display percentage done every 15 or 30 seconds, so user sees progress (hopefully not an async process...)
-#   ~ Possibly get some file conversion time averages and estimate time to completion?
-# - BIG ONE: If song exists, skip it
-# - reconvert() - Add "failed" files to an array, and try to convert them again in case there was a weird error
 # - Make it so CTRL+C adds current song to failedSongs[], then passes signal to ffmpeg (for broken conversions)
 # - Create a file called ~/.m2uSettings.conf that gets preloaded.
 #   ~ Keeps settings like prefix, output folder, defaults, etc.
 # - For -d|--delete - Copy over current m3u, and compare m3u files to see what changed, and delete changes
 # - Make 'secret' or 'unlisted' options only double options and list them in displayHelp()
 #   ~ e.g: only --update instead of -u|--update
+#   ~ Change timeout value of ffmpeg with --timeout <seconds>
 #   ~ Useful for things like minor script options. Also useful in other scripts
 #   ~ This almost makes it worth figuring out manpages...
+# - PARALLEL PROCESSING IDEA
+#   ~ First, determine number of threads to run based on cores
+#   ~ Each thread takes the first element, then deletes it so others can't use it
+#   ~ Have a 'lock' variable in place to prevent other threads from grabbing the same element
+#     ~ if [[ $lokc -eq 1 ]]; then wait 2s; fi
+#   ~ Find a way to isolate the function for each thred so they don't overwrite each other's local vars
 #
 # v1.1.11, 30 Dec. 2016 17:12 PST
 
@@ -147,8 +145,8 @@ else
 	echo "commonFunctions.sh could not be located!"
 
 	# Comment/uncomment below depending on if script actually uses common functions
-	#echo "Script will now exit, please put file in same directory as script, or link to /usr/share!"
-	#exit 1
+	echo "Script will now exit, please put file in same directory as script, or link to /usr/share!"
+	exit 1
 fi
 
 # convertSong "inputFile" "outputFile"
