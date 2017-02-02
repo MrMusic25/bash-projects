@@ -5,6 +5,11 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v0.1.0
+# - Updated displayHelp and processArgs for this script
+# - Added options and descriptions to respective functions
+# - Created installScript() function, does nothing so far
+#
 # v0.0.2
 # - Script is meant to be autonomous; therefore, it will manually download commonFunctions.sh if not detected
 # - Same for packageManagerCF.sh
@@ -19,7 +24,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.0.2, 01 Feb. 2017 23:25 PST
+# v0.1.0, 02 Feb. 2017 15:28 PST
 
 ### Variables
 
@@ -53,105 +58,92 @@ function displayHelp() {
 # The echo at the end will output it, exactly as shown, to the user
 read -d '' helpVar <<"endHelp"
 
-scriptName.sh - A script to perform a function or fulfill a purpose
-Be sure to look at all the options below
+commandFetch.sh - A script that will check a server for a list of commnads
+More or less a botnet, but 99% less sinister!
 
-Usage: ./scriptName.sh [options] <required_argument> <also_required> [optional_argument]
+Usage: ./commandFetch.sh [options]
+Meant to be run as-is, but uses modifiers as necessary
 
 Options:
--h | --help                         : Display this help message and exit
--o | --option                       : Option with an alias (default)
---output-only                       : Option with no shotrened name
--i | --include <file1> [file2] ...  : Option including possibly more than one argument
--a | --assume <[Y]es or [N]o>       : Option that supports full or shortened argument names
--v | --verbose                      : Prints verbose debug information. MUST be the first argument!
+-h | --help                  : Display this help message and exit
+-s | --server <address>      : Specify the IP address/host/domain name to check with. Using this will NOT update the default address!
+-p | --port <port_num>       : Specify the port to use with wget
+-h | --hostname <name>       : Changes the hostname to check against the server with
+-i | --install [root]        : Installs this script as a cron job, with option to do so as root
+-v | --verbose               : Enable verbose mode. Note: MUST be the first argument!
 
-Put definitions, examples, and expected outcome here
+When script is first run, a cronjob will be automatically added for the user! Be careful when forcing it with -i !
+Using the -s option will not update the default server, located at /usr/share/server. Update this manually.
+Uses hostname found at /etc/hostname.
 
 endHelp
 echo "$helpVar"
 }
 
 function processArgs() {
-	# displayHelp and exit if there is less than the required number of arguments
-	# Remember to change this as your requirements change!
-	if [[ $# -lt 1 ]]; then
-		debug "l2" "ERROR: No arguments given! Please fix and re-run"
-		displayHelp
-		exit 1
-	fi
-	
-	# This is an example of how most of my argument processors look
-	# Psuedo-code: until condition is met, change values based on input; shift variable, then repeat
 	while [[ $loopFlag -eq 0 ]]; do
 		key="$1"
-		
-		# In this example, if $key and $2 are a file and a directory, then processing arguments can end. Otherwise it will loop forever
-		# This is also where you would include code for optional 3rd argument, otherwise it will never be processed
-		if [[ -f "$key" && -d "$2" ]]; then
-			inputFile="$key"
-			outputDir="$2"
-			
-			if [[ -f "$3" ]]; then
-				tmpDir="$3"
-			fi
-			loopFlag=1 # This will kill the loop, and the function. A 'return' statement would also work here.
-		fi
 			
 		case "$key" in
-			--output-only) # Long, unaliased names should always go first so they do not create errors. Try to avoid similar names!
-			outputOnly="true"
-			;;
 			-h|--help)
 			displayHelp
 			exit 0
 			;;
-			-o|--option)
-			option=1
+			-s|--server)
+			if [[ -z $2 ]]; then
+				debug "l2" "ERROR: No server address given with $key! Please fix and re-run!"
+				exit 1
+			fi
+			server="$2"
+			shift
 			;;
-			-i|--include)
-			# Be careful with these, always check for file validity before moving on
-			# Doing it this way makes it you can add as many files as you want, and then continuing
-			until [[ "$2" == -* ]]; do # Keep looping until an option (starting with a - ) is found
-				if [[ -f "$2" ]]; then
-					# This adds the filename to the array includeFiles - make code later to perform an action on each file
-					includeFiles+=("$2")
-					shift
-				else
-					# displayHelp and exit if the file could not be found, safety measure
-					debug "l2" "ERROR: Argument $2 is not a valid file or argument!"
-					displayHelp
-					exit 1
-				fi
-			done
+			-p|--port)
+			if [[ -z $2 ]]; then
+				debug "l2" "ERROR: No port number given with $key! Please fix and re-run!"
+				exit 1
+			elif [[ ! "$2" -eq "$2" ]]; then # If $2 is not an integer, report and exit
+				debug "l2" "ERROR: Argument $2 is not a valid integer or port number! Please fix and re-run!"
+				exit 1
+			fi
+			port="$2"
+			shift
 			;;
-			-a|--assume)
-			if [[ "$2" == "Y" || "$2" == "y" || "$2" == "Yes" || "$2" == "yes" ]]; then
-				assume="true"
-				shift
-			elif [[ "$2" == "N" || "$2" == "n" || "$2" == "No" || "$2" == "no" ]]; then
-				assume="false" # If this is the default value, you can delete this line, used for example purposes
+			-h|--hostname)
+			if [[ -z $2 ]]; then
+				debug "l2" "ERROR: No hostname given with $key! Please fix and re-run!"
+				exit 1
+			fi
+			hostname="$2" # Puts a lot of trust in the user, same as with server
+			;;
+			-i|--install)
+			if [[ "$2" == "root" ]]; then
+				installScript "root"
 				shift
 			else
-				# Invalid value given with -a, report and exit!
-				debug "l2" "ERROR: Invalid option $2 given with $key! Please fix and re-run"
-				displayHelp
-				exit 1
+				installScript
 			fi
 			;;
 			*)
-			# Anything here is undocumented or uncoded. Up to user whether or not to continue, but it is recommended to exit here if triggered
-			debug "l2" "ERROR: Unknown option given: $key! Please fix and re-run"
-			displayHelp
+			debug "l2" "ERROR: Unknown option $key given! Please fix and re-run!"
 			exit 1
 			;;
 		esac
-		shift
+		shift || loopFlag=1
 	done
+}
+
+function installScript() {
+	
 }
 
 ### Main Script
 
-processArgs "$@" # Make sure to include the "$@" at the end of the call, otherwise function will not work
+# Link the script to /usr/bin if not already there
+if [[ ! -e /usr/bin/commandFetch.sh ]]; then
+	debug "l3" "Script is not linked to /usr/bin, please give root permissions to complete!"
+	sudo ln -s "$(pwd)"/"$0" /usr/bin/commandFetch.sh
+fi
+
+processArgs "$@"
 
 #EOF
