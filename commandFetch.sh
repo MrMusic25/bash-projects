@@ -1,21 +1,32 @@
 #!/bin/bash
 #
-# <Insert script name and info blurb here>
+# commandFetch.sh - Check a command server for instructions on what to do (like a botnet, but more localized and less evil)
+# Script will check for $hostname based instructions first, then a $general inscturctions list
+# If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v0.0.2
+# - Script is meant to be autonomous; therefore, it will manually download commonFunctions.sh if not detected
+# - Same for packageManagerCF.sh
+# - Lots TODO
+#
 # v0.0.1
 # - Initial version
 #
 # TODO:
-# - Things to do go here
-#   ~ Use spaces because I said so
-#     ~ Separate levels like this
+# - If no cronjob already detected, install a cronjob that runs script in daemon mode every minute
+#   ~ Also ask user if they want more than the default alloted time for checking (over metered connections)
+# - In daemon mode, no interactive stuff allowed (not that there should be much anways)
+# - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.0.1, <Insert date here>
+# v0.0.2, 01 Feb. 2017 23:25 PST
 
 ### Variables
 
-
+hostname="$(cat /etc/hostname)" # Setup by default in every distro I have used
+server="$(cat /usr/share/server)" # Default place this script will store server address, which could be a static IP (local) or a hostname/domain (internet)
+serverPort=80 # This makes firewall handling easier. 8080 and 443 might be other good options, might be used later in this script
+defaultInterval=1 # Number of minutes between checks. Only used when setting up cron
 
 ### Functions
 
@@ -24,11 +35,17 @@ if [[ -f commonFunctions.sh ]]; then
 elif [[ -f /usr/share/commonFunctions.sh ]]; then
 	source /usr/share/commonFunctions.sh
 else
-	echo "commonFunctions.sh could not be located!"
+	# This script is meant to be autonomous, so if this is not found, it will download it and install it
+	echo "ERROR: commonFunctions.sh not found, installing it for you (sudo premission required)!"
 	
-	# Comment/uncomment below depending on if script actually uses common functions
-	echo "Script will now exit, please put file in same directory as script, or link to /usr/share!"
-	exit 1
+	wget "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/commonFunctions.sh" # Hard link, should never change
+	wget "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/packageManagerCF.sh" # This could always be necessary, so include it!
+	chmod +x commonFunctions.sh # Just in case
+	chmod +x packageManagerCF.sh
+	sudo ln -s "$(pwd)"/commonFunctions.sh /usr/share/commonFunctions.sh
+	sudo ln -s "$(pwd)"/packageManagerCF.sh /usr/share/packageManagerCF.sh
+	
+	source commonFunctions.sh # And continue on with the script... one-time run and setup
 fi
 
 function displayHelp() {
