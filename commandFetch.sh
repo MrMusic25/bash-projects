@@ -7,6 +7,8 @@
 # Changes:
 # v0.5.1
 # - Changed the way the processArgs loop works, now has a way to exit gracefully
+# - Fixed server port variable names
+# - Slightly changed the way netcat is installed. GNU-netcat preferred over openBSD-netcat!
 #
 # v0.5.0
 # - Added package requirements to script
@@ -50,7 +52,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.5.1, 03 Feb. 2017 11:12 PST
+# v0.5.1, 03 Feb. 2017 11:19 PST
 
 ### Variables
 
@@ -151,8 +153,8 @@ function processArgs() {
 				debug "l2" "ERROR: Argument $2 is not a valid integer or port number! Please fix and re-run!"
 				exit 1
 			fi
-			port="$2"
-			debug "INFO: Port temporarily set to $port"
+			serverPort="$2"
+			debug "INFO: Port temporarily set to $serverPort"
 			shift
 			((argCount++))
 			;;
@@ -248,7 +250,7 @@ if [[ ! -e /usr/bin/commandFetch ]]; then
 	sudo ln -s "$(pwd)"/"$0" /usr/bin/commandFetch
 fi
 
-checkRequirements "nc/gnu-netcat" "wget"
+checkRequirements "nc/gnu-netcat" "nc/netcat" "wget" # Having it twice may seem counter-intuitive, but I found not all versions use the same version. GNU preferred, so it is first
 processArgs "$@" # Check to see if server given here before exiting
 
 if [[ -z "$server" && ! -f "/usr/share/server" ]]; then
@@ -277,7 +279,7 @@ case $value in
 esac
 
 # Better way - test to see if port is open; added req for netcat
-nc -z -w5 "$server" "$port"
+nc -z -w5 "$server" "$serverPort"
 case $? in
 	0)
 	debug "INFO: Server port is open, moving on!"
