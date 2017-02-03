@@ -5,6 +5,11 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v0.4.0
+# - Added check to see if server is up
+# - Added -q option to tell script to quit if ping fails
+# - Updated oter functions accordingly
+#
 # v0.3.1
 # - Minor text fixes
 #
@@ -37,7 +42,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.3.1, 02 Feb. 2017 18:09 PST
+# v0.4.0, 02 Feb. 2017 18:40 PST
 
 ### Variables
 
@@ -45,6 +50,7 @@ hostname="$(cat /etc/hostname)" # Setup by default in every distro I have used
 server="$(cat /usr/share/server)" # Default place this script will store server address, which could be a static IP (local) or a hostname/domain (internet)
 serverPort=80 # This makes firewall handling easier. 8080 and 443 might be other good options, might be used later in this script
 defaultInterval=1 # Number of minutes between checks. Only used when setting up cron
+quitPing=0 # Tells computer whether to quit if ping is unsuccessful
 daemon=0
 
 ### Functions
@@ -81,6 +87,7 @@ Meant to be run as-is, but uses modifiers as necessary
 Options:
 -h | --help                  : Display this help message and exit
 -d | --daemon                : Stops interactive functions from running, make sure it is included in cronjobs!
+-q | --quit-ping             : Script will quit if ping fails. Default is to attempt to continue.
 -s | --server <address>      : Specify the IP address/host/domain name to check with. Will NOT update the default address!
 -p | --port <port_num>       : Specify the port to use with wget
 -h | --hostname <name>       : Changes the hostname to check against the server with
@@ -108,6 +115,10 @@ function processArgs() {
 			-h|--help)
 			displayHelp
 			exit 0
+			;;
+			-q|--quit-ping)
+			debug "INFO: Script is set to quit if ping fails"
+			quitPing=1
 			;;
 			-s|--server)
 			if [[ -z $2 ]]; then
@@ -224,6 +235,23 @@ if [[ -z "$server" && ! -f "/usr/share/server" ]]; then
 	sleep 3
 	exit 1
 fi
+
+# Test to see if server is up
+ping -c 5 "$server"
+value="$?"
+case $value in
+	0)
+	debug "Server is responsive, continuing"
+	;;
+	*)
+	if [[ "$quitPing" -eq 0 ]]; then
+		debug "l2" "WARN: Server unresponsive, ICMP may be blocked or server is down. Attempting to continue... (Ping value: $value)"
+	else
+		debug "l2" "WARN: Server unresponsive, quitting by user decision! (Ping value: $value)"
+		exit 1
+	fi
+	;;
+esac
 
 announce "Done with script!"
 
