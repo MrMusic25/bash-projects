@@ -5,6 +5,11 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v0.5.0
+# - Added package requirements to script
+# - Script will now download packageManager.sh if not present
+# - Made a check to see if port is open
+#
 # v0.4.0
 # - Added check to see if server is up
 # - Added -q option to tell script to quit if ping fails
@@ -42,7 +47,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.4.0, 02 Feb. 2017 18:40 PST
+# v0.5.0, 02 Feb. 2017 19:12 PST
 
 ### Variables
 
@@ -65,10 +70,13 @@ else
 	
 	wget "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/commonFunctions.sh" # Hard link, should never change
 	wget "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/packageManagerCF.sh" # This could always be necessary, so include it!
+	wget "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/packageManager.sh" # Adding checkRequirements made this necessary for full autonomy
 	chmod +x commonFunctions.sh # Just in case
 	chmod +x packageManagerCF.sh
+	chmod +x packageManager.sh
 	sudo ln -s "$(pwd)"/commonFunctions.sh /usr/share/commonFunctions.sh
 	sudo ln -s "$(pwd)"/packageManagerCF.sh /usr/share/packageManagerCF.sh
+	sudo ln -s "$(pwd)"/packageManagerCF.sh /usr/bin/pm
 	
 	source commonFunctions.sh # And continue on with the script... one-time run and setup
 fi
@@ -226,6 +234,7 @@ if [[ ! -e /usr/bin/commandFetch ]]; then
 	sudo ln -s "$(pwd)"/"$0" /usr/bin/commandFetch
 fi
 
+checkRequirements "nc/gnu-netcat" "wget"
 processArgs "$@" # Check to see if server given here before exiting
 
 if [[ -z "$server" && ! -f "/usr/share/server" ]]; then
@@ -250,6 +259,18 @@ case $value in
 		debug "l2" "WARN: Server unresponsive, quitting by user decision! (Ping value: $value)"
 		exit 1
 	fi
+	;;
+esac
+
+# Better way - test to see if port is open; added req for netcat
+nc -z -w5 "$server" "$port"
+case $? in
+	0)
+	debug "INFO: Server port is open, moving on!"
+	;;
+	*)
+	debug "l2" "ERROR: Port is not open, or server is down. Quitting script for now!"
+	exit 1
 	;;
 esac
 
