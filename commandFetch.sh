@@ -5,6 +5,9 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v0.5.1
+# - Changed the way the processArgs loop works, now has a way to exit gracefully
+#
 # v0.5.0
 # - Added package requirements to script
 # - Script will now download packageManager.sh if not present
@@ -47,7 +50,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.5.0, 02 Feb. 2017 19:12 PST
+# v0.5.1, 03 Feb. 2017 11:12 PST
 
 ### Variables
 
@@ -116,9 +119,11 @@ function processArgs() {
 		return # No arguments, then continue
 	fi
 	
+	argCount=1
+	args="$#"
 	while [[ $loopFlag -eq 0 ]]; do
 		key="$1"
-			
+		
 		case "$key" in
 			-h|--help)
 			displayHelp
@@ -136,6 +141,7 @@ function processArgs() {
 			server="$2"
 			debug "INFO: Server temporarily set to: $server"
 			shift
+			((argCount++))
 			;;
 			-p|--port)
 			if [[ -z $2 ]]; then
@@ -148,6 +154,7 @@ function processArgs() {
 			port="$2"
 			debug "INFO: Port temporarily set to $port"
 			shift
+			((argCount++))
 			;;
 			-d|--daemon)
 			debug "Daemon mode enabled"
@@ -161,11 +168,13 @@ function processArgs() {
 			hostname="$2" # Puts a lot of trust in the user, same as with server
 			debug "INFO: Hostname temporarily set to $hostname"
 			shift
+			((argCount++))
 			;;
 			-i|--install)
 			if [[ "$2" == "user" ]]; then
 				installScript "user"
 				shift
+				((argCount++))
 			else
 				installScript
 			fi
@@ -175,7 +184,12 @@ function processArgs() {
 			exit 1
 			;;
 		esac
-		shift || loopFlag=1
+		shift
+		
+		((argCount++))
+		if [[ $argCount -ge $args ]]; then
+			loopFlag=1
+		fi
 	done
 }
 
