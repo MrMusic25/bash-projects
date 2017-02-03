@@ -5,6 +5,10 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v0.2.0
+# - Fixed an error preventing script from running (SC1048)
+# - Added checks and warnings when the server is unset
+#
 # v0.1.0
 # - Updated displayHelp and processArgs for this script
 # - Added options and descriptions to respective functions
@@ -24,7 +28,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.1.0, 02 Feb. 2017 15:28 PST
+# v0.2.0, 02 Feb. 2017 16:04 PST
 
 ### Variables
 
@@ -81,6 +85,10 @@ echo "$helpVar"
 }
 
 function processArgs() {
+	if [[ "$#" -eq 0 ]]; then
+		return # No arguments, then continue
+	fi
+	
 	while [[ $loopFlag -eq 0 ]]; do
 		key="$1"
 			
@@ -133,7 +141,7 @@ function processArgs() {
 }
 
 function installScript() {
-	
+	true
 }
 
 ### Main Script
@@ -144,6 +152,16 @@ if [[ ! -e /usr/bin/commandFetch.sh ]]; then
 	sudo ln -s "$(pwd)"/"$0" /usr/bin/commandFetch.sh
 fi
 
-processArgs "$@"
+processArgs "$@" # Check to see if server given here before exiting
+
+if [[ -z "$server" && ! -f "/usr/share/server" ]]; then
+	debug "FATAL: No server given, and no default server found at /usr/share/server! Please fix and re-run!"
+	# Tried to let debug handle this, but there was too much info to give
+	announce "Server is not set and is not given as an option!" "Please set the default server in /usr/share/server" "Or, re-run the script with the -s <server> option!"
+	sleep 3
+	exit 1
+fi
+
+announce "Done with script!"
 
 #EOF
