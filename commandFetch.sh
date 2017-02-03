@@ -5,6 +5,9 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v0.3.1
+# - Minor text fixes
+#
 # v0.3.0
 # - Got installScript() up and running
 # - Coded daemon options
@@ -34,7 +37,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.3.0, 02 Feb. 2017 18:02 PST
+# v0.3.1, 02 Feb. 2017 18:09 PST
 
 ### Variables
 
@@ -78,10 +81,10 @@ Meant to be run as-is, but uses modifiers as necessary
 Options:
 -h | --help                  : Display this help message and exit
 -d | --daemon                : Stops interactive functions from running, make sure it is included in cronjobs!
--s | --server <address>      : Specify the IP address/host/domain name to check with. Using this will NOT update the default address!
+-s | --server <address>      : Specify the IP address/host/domain name to check with. Will NOT update the default address!
 -p | --port <port_num>       : Specify the port to use with wget
 -h | --hostname <name>       : Changes the hostname to check against the server with
--i | --install [user]        : Installs this script as a cron job, with option to do so as current user (default is to install as root)
+-i | --install [user]        : Install script as cronjob, with option to do so as current user (default is root)
 -v | --verbose               : Enable verbose mode. Note: MUST be the first argument!
 
 When script is first run, a cronjob will be automatically added for the user! Be careful when forcing it with -i !
