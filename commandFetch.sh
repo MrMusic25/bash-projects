@@ -5,6 +5,10 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v0.5.2
+# - Changed debug wording
+# - Warn user when script not being run as root
+#
 # v0.5.1
 # - Changed the way the processArgs loop works, now has a way to exit gracefully
 # - Fixed server port variable names
@@ -52,7 +56,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.5.1, 03 Feb. 2017 11:19 PST
+# v0.5.2, 06 Feb. 2017 22:26 PST
 
 ### Variables
 
@@ -244,6 +248,12 @@ function installScript() {
 
 ### Main Script
 
+# Warn the user that this should be run as root, not as user; continue anyways, but give a warning
+if [[ $EUID -ne 0 ]]; then
+	debug "l2" "WARN: It is highly recommended to run this script as root!"
+	sleep 3
+fi
+
 # Link the script to /usr/bin if not already there
 if [[ ! -e /usr/bin/commandFetch ]]; then
 	debug "l3" "Script is not linked to /usr/bin, please give root permissions to complete!"
@@ -285,7 +295,7 @@ case $? in
 	debug "INFO: Server port is open, moving on!"
 	;;
 	*)
-	debug "l2" "ERROR: Port is not open, or server is down. Quitting script for now!"
+	debug "l2" "ERROR: Port $serverPort on $server is not open, or server is unresponsive. Quitting script for now!"
 	exit 1
 	;;
 esac
