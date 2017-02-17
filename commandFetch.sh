@@ -5,6 +5,11 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v0.6.0
+# - Added determineFile(), the ugly function that works
+# - Script checks for files in specific order now, downloading not ready yet
+# - Script will exit successfully if no files are available
+#
 # v0.5.2
 # - Changed debug wording
 # - Warn user when script not being run as root
@@ -56,7 +61,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.5.2, 06 Feb. 2017 22:26 PST
+# v0.6.0, 17 Feb. 2017 11:20 PST
 
 ### Variables
 
@@ -102,14 +107,14 @@ Usage: ./commandFetch.sh [options]
 Meant to be run as-is, but uses modifiers as necessary
 
 Options:
--h | --help                  : Display this help message and exit
--d | --daemon                : Stops interactive functions from running, make sure it is included in cronjobs!
--q | --quit-ping             : Script will quit if ping fails. Default is to attempt to continue.
--s | --server <address>      : Specify the IP address/host/domain name to check with. Will NOT update the default address!
--p | --port <port_num>       : Specify the port to use with wget
--h | --hostname <name>       : Changes the hostname to check against the server with
--i | --install [user]        : Install script as cronjob, with option to do so as current user (default is root)
--v | --verbose               : Enable verbose mode. Note: MUST be the first argument!
+-h | --help                : Display this help message and exit
+-d | --daemon              : Stops interactive functions from running, make sure it is included in cronjobs!
+-q | --quit-ping           : Script will quit if ping fails. Default is to attempt to continue.
+-s | --server <address>    : Specify the IP address/host/domain name to check with. Will NOT update the default address!
+-p | --port <port_num>     : Specify the port to use with wget
+-h | --hostname <name>     : Changes the hostname to check against the server with
+-i | --install [user]      : Install script as cronjob, with option to do so as current user (default is root)
+-v | --verbose             : Enable verbose mode. Note: MUST be the first argument!
 
 When script is first run, a cronjob will be automatically added for the user! Be careful when forcing it with -i !
 Default is to install as root; therefore, firt time run must be done with sudo or as root! (Same when running -i|--install)
@@ -246,6 +251,40 @@ function installScript() {
 	echo "$server" | sudo tee /usr/share/server > /dev/null
 }
 
+function determineFile() {
+	# self.sh takes precedence over all.sh
+	# Order to check: HostName.sh -> hostname.sh -> HOSTNAME.sh -> all.sh -> ALL.sh -> All.sh
+	
+	# This isn't going to be pretty, but it should be efficient enough
+	if [[ -z "$(curl -I --silent "$serverURL"/"$hostname".sh | grep 404)" ]]; then
+		downloadFile="$hostname".sh
+		return 0
+	fi
+	elif [[ -z "$(curl -I --silent "$serverURL"/"${hostname,,}".sh | grep 404)" ]]; then
+		downloadFile="${hostname,,}".sh # tolower()
+		return 0
+	fi
+	elif [[ -z "$(curl -I --silent "$serverURL"/"${hostname^^}".sh | grep 404)" ]]; then
+		downloadFile="${hostname^^}".sh # toupper()
+		return 0
+	fi
+	elif [[ -z "$(curl -I --silent "$serverURL"/all.sh | grep 404)" ]]; then
+		downloadFile=all.sh
+		return 0
+	fi
+	elif [[ -z "$(curl -I --silent "$serverURL"/ALL.sh | grep 404)" ]]; then
+		downloadFile=ALL.sh
+		return 0
+	fi
+	elif [[ -z "$(curl -I --silent "$serverURL"/All.sh | grep 404)" ]]; then
+		downloadFile=All.sh
+		return 0
+	fi
+	else
+		downloadFile="NULL"
+		return 1
+	fi
+}
 ### Main Script
 
 # Warn the user that this should be run as root, not as user; continue anyways, but give a warning
@@ -263,7 +302,7 @@ fi
 checkRequirements "nc/gnu-netcat" "nc/netcat" "wget" # Having it twice may seem counter-intuitive, but I found not all versions use the same version. GNU preferred, so it is first
 processArgs "$@" # Check to see if server given here before exiting
 
-if [[ -z "$server" && ! -f "/usr/share/server" ]]; then
+if [[ -z "$server" && ! -e "/usr/share/server" ]]; then
 	debug "FATAL: No server given, and no default server found at /usr/share/server! Please fix and re-run!"
 	# Tried to let debug handle this, but there was too much info to give
 	announce "Server is not set and is not given as an option!" "Please set the default server in /usr/share/server" "Or, re-run the script with the -s <server> option!"
@@ -299,6 +338,15 @@ case $? in
 	exit 1
 	;;
 esac
+
+# Server is up and available if it makes it this far
+serverURL="http://$server:$serverPort"
+determineFile
+if [[ $? -ne 0 ]]; then
+	debug "WARN: Server is up, but no commands are currently available! Quitting for now..."
+	exit 0 # Successful because there won't be commands everytime
+fi
+
 
 announce "Done with script!"
 
