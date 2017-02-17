@@ -4,6 +4,9 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.12
+# - Added $longName for better logging
+#
 # v1.1.11
 # - Reverted changes from v1.1.8, existing songs need a new way to be handled with preserveLevel=none
 # - For now, everything will be treated as a delta conversion - I will make a permanenent solution later
@@ -115,7 +118,7 @@
 #     ~ if [[ $lokc -eq 1 ]]; then wait 2s; fi
 #   ~ Find a way to isolate the function for each thred so they don't overwrite each other's local vars
 #
-# v1.1.11, 30 Dec. 2016 17:12 PST
+# v1.1.12, 16 Feb. 2016 22:01 PST
 
 ### Variables
 
@@ -134,6 +137,7 @@ numberDelimiter=' ' # Defaults to a space, but can be changed by user if needed
 total=0 # Total number of songs
 songsConverted=0
 timeBetweenUpdates=60 # Time between progress updates, in seconds
+longName="m3uToUSB" # Used for logging
 
 ### Functions
 
