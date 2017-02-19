@@ -5,6 +5,13 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v1.0.0
+# - Ready for full release! Should theoretically work, but untested for now
+# - Added code to make sure only one copy of each script can run at the same time (self-script, and all-script)
+# - This prevents overwriting of the file, and frees system resources
+# - Added checkProcesses() to implement above funcionality
+# - Unintentionally, this system allows each user to have their own set of scripts running, thought this really should be root-only
+#
 # v0.6.0
 # - Added determineFile(), the ugly function that works
 # - Script checks for files in specific order now, downloading not ready yet
@@ -61,7 +68,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v0.6.0, 17 Feb. 2017 11:20 PST
+# v1.0.0, 18 Feb. 2017 19:40 PST
 
 ### Variables
 
@@ -69,6 +76,8 @@ hostname="$(cat /etc/hostname)" # Setup by default in every distro I have used
 server="$(cat /usr/share/server)" # Default place this script will store server address, which could be a static IP (local) or a hostname/domain (internet)
 serverPort=80 # This makes firewall handling easier. 8080 and 443 might be other good options, might be used later in this script
 defaultInterval=1 # Number of minutes between checks. Only used when setting up cron
+selfScript="$HOME"/selfScript # These two lines are used to make sure only one copy of each script can run at the same time
+allScript="$HOME"/allScript
 quitPing=0 # Tells computer whether to quit if ping is unsuccessful
 daemon=0
 
@@ -258,26 +267,32 @@ function determineFile() {
 	# This isn't going to be pretty, but it should be efficient enough
 	if [[ -z "$(curl -I --silent "$serverURL"/"$hostname".sh | grep 404)" ]]; then
 		downloadFile="$hostname".sh
+		scriptMode="self"
 		return 0
 	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/"${hostname,,}".sh | grep 404)" ]]; then
 		downloadFile="${hostname,,}".sh # tolower()
+		scriptMode="self"
 		return 0
 	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/"${hostname^^}".sh | grep 404)" ]]; then
 		downloadFile="${hostname^^}".sh # toupper()
+		scriptMode="self"
 		return 0
 	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/all.sh | grep 404)" ]]; then
 		downloadFile=all.sh
+		scriptMode="all"
 		return 0
 	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/ALL.sh | grep 404)" ]]; then
 		downloadFile=ALL.sh
+		scriptMode="all"
 		return 0
 	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/All.sh | grep 404)" ]]; then
 		downloadFile=All.sh
+		scriptMode="all"
 		return 0
 	fi
 	else
@@ -285,6 +300,37 @@ function determineFile() {
 		return 1
 	fi
 }
+
+function checkProcesses() {
+	# Check to see if processes are even running, quit if so
+	case "$scriptMode" in
+		self)
+		debug "INFO: Script is set to self mode! Checking for existing process..."
+		if [[ -e "$selfScript" ]]; then
+			debug "l2" "FATAL: Script is running in self mode, but an existing script is already running! Exiting for now..."
+			exit 0 # Success because it's part of the script's function
+		else
+			debug "INFO: No self scripts running! Locking the self-script and prepping to run!"
+			touch "$selfScript"
+		fi
+		;;
+		all)
+		debug "INFO: Script is set to all mode! Checking for existing process..."
+		if [[ -e "$allScript" ]]; then
+			debug "l2" "FATAL: Script is running in all mode, but an existing script is already running! Exiting for now..."
+			exit 0
+		else
+			debug "INFO: No all scripts running! Locking the all-script and prepping to run!"
+			touch "$allScript"
+		fi
+		;;
+		*)
+		debug "l2" "ERROR: Unknown scriptMode: $scriptMode ! Please diagnose and retry!"
+		exit 1
+		;;
+	esac
+}
+
 ### Main Script
 
 # Warn the user that this should be run as root, not as user; continue anyways, but give a warning
@@ -346,7 +392,39 @@ if [[ $? -ne 0 ]]; then
 	debug "WARN: Server is up, but no commands are currently available! Quitting for now..."
 	exit 0 # Successful because there won't be commands everytime
 fi
+checkProcesses # This will exit script if any other errors come up
 
+# Making it this far means server is up, server has a script ready for computer, and script is not already being run
+scriptFile="$HOME"/"$downloadFile" # Don't want to cause issues with cron or systemd or anything, so base this in the home folder
+curl "$serverURL"/"$downloadFile" > "$scriptFile" # This way, we don't have to worry about existing files
+chmod +x "$scriptFile"
+
+# Ladies and gentlemen, boys and girls, it's the moment you've all been waiting for!
+# *drum roll*
+# TAH-DAH!!!!!!
+eval "$scriptFile"
+
+# ..... Had to put those comments, because this felt like the most uneventful thing to happen to a 400+ line project lol
+# ANYWAYS....... xD
+
+# Time to cleanup and report what happened
+rvalue="$?"
+if [[ "$rvalue" -ne 0 ]]; then
+	debug "l2" "WARN: Script completed with a non-zero exit code! Exit code: $rvalue"
+else
+	debug "l2" "WARN: Script completed successfully!"
+fi
+
+# Remove process lock and 
+case "$scriptMode" in
+	self)
+	rm "$selfScript"
+	;;
+	all)
+	rm "$allScript"
+	;;
+esac
+rm "$scriptFile"
 
 announce "Done with script!"
 
