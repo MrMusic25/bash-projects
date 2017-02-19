@@ -5,6 +5,14 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v1.1.0
+# - Added excludeCheck()
+# - Incidentally, now you can exclude clients based on hostname from running All.sh
+# - Do this with a newline delimited file called excluide.txt
+# - Changed the order of some operations
+# - Everything uses curl instead of wget now!
+# - Tested everything before uploading this time, and everything works as intended!
+#
 # v1.0.1
 # - Debugging led to minor changes. Script confirmed as working, though!
 #
@@ -71,7 +79,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v1.0.1, 19 Feb. 2017 00:36 PST
+# v1.1.0, 19 Feb. 2017 01:33 PST
 
 ### Variables
 
@@ -94,9 +102,9 @@ else
 	# This script is meant to be autonomous, so if this is not found, it will download it and install it
 	echo "ERROR: commonFunctions.sh not found, installing it for you (sudo premission required)!"
 	
-	wget "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/commonFunctions.sh" # Hard link, should never change
-	wget "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/packageManagerCF.sh" # This could always be necessary, so include it!
-	wget "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/packageManager.sh" # Adding checkRequirements made this necessary for full autonomy
+	curl -O --silent "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/commonFunctions.sh" # Hard link, should never change
+	curl -O --silent "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/packageManagerCF.sh" # This could always be necessary, so include it!
+	curl -O --silent "https://raw.githubusercontent.com/MrMusic25/linux-pref/master/packageManager.sh" # Adding checkRequirements made this necessary for full autonomy
 	chmod +x commonFunctions.sh # Just in case
 	chmod +x packageManagerCF.sh
 	chmod +x packageManager.sh
@@ -123,7 +131,7 @@ Options:
 -d | --daemon              : Stops interactive functions from running, make sure it is included in cronjobs!
 -q | --quit-ping           : Script will quit if ping fails. Default is to attempt to continue.
 -s | --server <address>    : Specify the IP address/host/domain name to check with. Will NOT update the default address!
--p | --port <port_num>     : Specify the port to use with wget
+-p | --port <port_num>     : Specify the port to use with curl
 -h | --hostname <name>     : Changes the hostname to check against the server with
 -i | --install [user]      : Install script as cronjob, with option to do so as current user (default is root)
 -v | --verbose             : Enable verbose mode. Note: MUST be the first argument!
@@ -328,6 +336,35 @@ function checkProcesses() {
 	esac
 }
 
+function excludeCheck() {
+	if [[ "$scriptMode" == "self" ]]; then
+		# Rationale: Script will always run its own script. Period.
+		# Exclude means that you can tell one or two computers to ignore the allScript.
+		# Therefore, no use in excluding itself from selfScript
+		return 0
+	fi
+	
+	# Assuming mode=all, see if self is excluded
+	if [[ -z "$(curl -I --silent "$serverURL"/exclude.txt | grep 404)" ]]; then
+		debug "l5" "WARN: Exclude list is present, checking if this computer is excluded..."
+		curl -O --silent "$serverURL"/exclude.txt
+		
+		while read -r computer;
+		do
+			if [[ "$computer" == "$hostname" || "$computer" == "${hostname,,}" || "$computer" == "${hostname^^}" ]]; then
+				# This code makes it very important for each host to have unique hostnames. Might come up with a better way to deal with this later...
+				debug "l2" "WARN: This computer has been excluded from running $downloadFile ! Quitting for now..."
+				rm exclude.txt
+				exit 0 # Once again, this is success as it is expected behavior
+			fi
+		done <exclude.txt
+		rm exclude.txt
+		debug "l2" "INFO: This info has not been excluded from running $downloadFile ! Moving on..."
+	else
+		debug "l5" "INFO: No exclude file found, moving on with script!"
+	fi
+}
+
 ### Main Script
 
 # Link the script to /usr/bin if not already there
@@ -336,7 +373,7 @@ if [[ ! -e /usr/bin/commandFetch ]]; then
 	sudo ln -s "$(pwd)"/"$0" /usr/bin/commandFetch
 fi
 
-checkRequirements "nc/gnu-netcat" "nc/netcat" "wget" # Having it twice may seem counter-intuitive, but I found not all versions use the same version. GNU preferred, so it is first
+checkRequirements "nc/gnu-netcat" "nc/netcat" "curl" # Having it twice may seem counter-intuitive, but I found not all versions use the same version. GNU preferred, so it is first
 processArgs "$@" # Check to see if server given here before exiting
 
 # Warn the user that this should be run as root, not as user; continue anyways, but give a warning
@@ -386,10 +423,11 @@ esac
 serverURL="http://$server:$serverPort"
 determineFile
 if [[ $? -ne 0 ]]; then
-	debug "WARN: Server is up, but no commands are currently available! Quitting for now..."
+	debug "l3" "WARN: Server is up, but no commands are currently available! Quitting for now..."
 	exit 0 # Successful because there won't be commands everytime
 fi
 checkProcesses # This will exit script if any other errors come up
+excludeCheck
 
 # Making it this far means server is up, server has a script ready for computer, and script is not already being run
 scriptFile="$HOME"/"$downloadFile" # Don't want to cause issues with cron or systemd or anything, so base this in the home folder
