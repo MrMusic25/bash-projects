@@ -5,6 +5,9 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v1.0.1
+# - Debugging led to minor changes. Script confirmed as working, though!
+#
 # v1.0.0
 # - Ready for full release! Should theoretically work, but untested for now
 # - Added code to make sure only one copy of each script can run at the same time (self-script, and all-script)
@@ -68,7 +71,7 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v1.0.0, 18 Feb. 2017 19:40 PST
+# v1.0.1, 19 Feb. 2017 00:36 PST
 
 ### Variables
 
@@ -269,32 +272,26 @@ function determineFile() {
 		downloadFile="$hostname".sh
 		scriptMode="self"
 		return 0
-	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/"${hostname,,}".sh | grep 404)" ]]; then
 		downloadFile="${hostname,,}".sh # tolower()
 		scriptMode="self"
 		return 0
-	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/"${hostname^^}".sh | grep 404)" ]]; then
 		downloadFile="${hostname^^}".sh # toupper()
 		scriptMode="self"
 		return 0
-	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/all.sh | grep 404)" ]]; then
 		downloadFile=all.sh
 		scriptMode="all"
 		return 0
-	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/ALL.sh | grep 404)" ]]; then
 		downloadFile=ALL.sh
 		scriptMode="all"
 		return 0
-	fi
 	elif [[ -z "$(curl -I --silent "$serverURL"/All.sh | grep 404)" ]]; then
 		downloadFile=All.sh
 		scriptMode="all"
 		return 0
-	fi
 	else
 		downloadFile="NULL"
 		return 1
@@ -333,12 +330,6 @@ function checkProcesses() {
 
 ### Main Script
 
-# Warn the user that this should be run as root, not as user; continue anyways, but give a warning
-if [[ $EUID -ne 0 ]]; then
-	debug "l2" "WARN: It is highly recommended to run this script as root!"
-	sleep 3
-fi
-
 # Link the script to /usr/bin if not already there
 if [[ ! -e /usr/bin/commandFetch ]]; then
 	debug "l3" "Script is not linked to /usr/bin, please give root permissions to complete!"
@@ -347,6 +338,12 @@ fi
 
 checkRequirements "nc/gnu-netcat" "nc/netcat" "wget" # Having it twice may seem counter-intuitive, but I found not all versions use the same version. GNU preferred, so it is first
 processArgs "$@" # Check to see if server given here before exiting
+
+# Warn the user that this should be run as root, not as user; continue anyways, but give a warning
+if [[ $EUID -ne 0 ]]; then
+	debug "l2" "WARN: It is highly recommended to run this script as root!"
+	sleep 3
+fi
 
 if [[ -z "$server" && ! -e "/usr/share/server" ]]; then
 	debug "FATAL: No server given, and no default server found at /usr/share/server! Please fix and re-run!"
@@ -396,7 +393,7 @@ checkProcesses # This will exit script if any other errors come up
 
 # Making it this far means server is up, server has a script ready for computer, and script is not already being run
 scriptFile="$HOME"/"$downloadFile" # Don't want to cause issues with cron or systemd or anything, so base this in the home folder
-curl "$serverURL"/"$downloadFile" > "$scriptFile" # This way, we don't have to worry about existing files
+curl --silent "$serverURL"/"$downloadFile" > "$scriptFile" # This way, we don't have to worry about existing files
 chmod +x "$scriptFile"
 
 # Ladies and gentlemen, boys and girls, it's the moment you've all been waiting for!
