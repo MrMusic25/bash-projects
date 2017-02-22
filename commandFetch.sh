@@ -5,6 +5,12 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v1.2.0
+# - Felt this change warranted a new version number
+# - Added the non-root functionality, and code to help setup new user for scripts that require a non-root
+# - User has choice to make new user, or use existing user for non-root operations, for when they are required
+# - Subsequently, added the setupUser() function
+#
 # v1.1.0
 # - Added excludeCheck()
 # - Incidentally, now you can exclude clients based on hostname from running All.sh
@@ -79,12 +85,12 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v1.1.0, 19 Feb. 2017 01:33 PST
+# v1.2.0, 22 Feb. 2017 01:19 PST
 
 ### Variables
 
-hostname="$(cat /etc/hostname)" # Setup by default in every distro I have used
-server="$(cat /usr/share/server)" # Default place this script will store server address, which could be a static IP (local) or a hostname/domain (internet)
+hostname="$(cat /etc/hostname 2>/dev/null)" # Setup by default in every distro I have used
+server="$(cat /usr/share/server 2>/dev/null)" # Default place this script will store server address, which could be a static IP (local) or a hostname/domain (internet)
 serverPort=80 # This makes firewall handling easier. 8080 and 443 might be other good options, might be used later in this script
 defaultInterval=1 # Number of minutes between checks. Only used when setting up cron
 selfScript="$HOME"/selfScript # These two lines are used to make sure only one copy of each script can run at the same time
@@ -269,6 +275,7 @@ function installScript() {
 	read -p "Please type the IP address, hostname, or domain name of the default server: " server
 	debug "Changing default server to: $server"
 	echo "$server" | sudo tee /usr/share/server > /dev/null
+	setupUser # Sets up the default non-root user for scripts that require it
 }
 
 function determineFile() {
@@ -365,6 +372,51 @@ function excludeCheck() {
 	fi
 }
 
+function setupUser() {
+	# Not in daemon mode now, so ask to either make new user or select a non-root user for use
+	getUserAnswer "Would you like to install a new user for non-root tasks? Say no to select current user." nonRootUser "Please enter a name for the non-root user:"
+	case $? in
+		0)
+		# All these commands forced lowercase because users sometimes don't know better
+		nonRootUser="${nonRootUser,,}"
+		debug "l2" "INFO: Installing new group/user with name $nonRootUser ! This will require sudo access, please grant!"
+		sudo useradd -U -m -s /bin/bash -c "Non-root User" "$nonRootUser"
+		debug "l2" "INFO: Please update the new user's password!"
+		sudo passwd "$nonRootUser"
+		echo "$nonRootUser" | sudo tee /usr/share/nonRootUser >/dev/null
+		debug "INFO: New user successfully installed!"
+		;;
+		1)
+		printf "Listing possible users: "
+		for user in $(cat /etc/passwd | cut -d':' -f1,4);
+		do
+			if [[ $(echo "$user" | cut -d':' -f2) -ge 1000 ]]; then
+				printf "%s, " "$(echo "$user" | cut -d':' -f1)"
+			fi
+		done
+		printf "\n"
+		getUserAnswer "Would you like to set the non-root user to one listed above?" nonRootUser "Please enter the name of a user from above."
+		case $? in
+			0)
+			debug "l2" "INFO: Setting non-root user to $nonRootUser , please provide sudo privilege!"
+			echo "$nonRootUser" | sudo tee /usr/share/nonRootUser >/dev/null
+			;;
+			1)
+			debug "WARN: User chose not to set non-root user for now."
+			;;
+			*)
+			debug "l2" "FATAL: Unknown return value from getUserAnswer! Exiting..."
+			exit 1
+			;;
+		esac
+		;;
+		*)
+		debug "l2" "FATAL: Unknown return value from getUserAnswer! Exiting..."
+		exit 1
+		;;
+	esac
+}
+
 ### Main Script
 
 # Link the script to /usr/bin if not already there
@@ -381,6 +433,20 @@ if [[ $EUID -ne 0 ]]; then
 	debug "l2" "WARN: It is highly recommended to run this script as root!"
 	sleep 3
 fi
+
+# Check to see if non-root user has been setup
+while [[ ! -e /usr/share/nonRootUser && $EUID -ne 0 ]];
+do
+	debug "l2" "WARN: Non-root user has not yet been setup!"
+	if [[ $daemon -ne 0 ]]; then
+		debug "l2" "WARN: Running in daemon mode, please run script in non-daemon mode to setup non-root user!"
+		break
+	fi
+	
+	setupUser
+	break # I only wanted to run the loop once, but couldn't find a way to break from anything but a while loop
+done
+nonRootUser="$(cat /usr/share/nonRootUser)"
 
 if [[ -z "$server" && ! -e "/usr/share/server" ]]; then
 	debug "FATAL: No server given, and no default server found at /usr/share/server! Please fix and re-run!"
