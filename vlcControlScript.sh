@@ -1,24 +1,21 @@
 #!/bin/bash
 #
-# <Insert script name and info blurb here>
+# vlcControlScript.sh - A script meant to provide whole-house audio using VLC and commandFetch.sh
 #
 # Changes:
 # v0.0.1
 # - Initial version
 #
 # TODO:
-# - Things to do go here
-#   ~ Use spaces because I said so
-#     ~ Separate levels like this
 #
-# v0.0.1, <Insert date here>
+# v0.0.1, 25 Feb. 2017, 17:31 PST
 
 ### Variables
 
 # These variables are used for logging
 # longName is preferred, if it is missing it will use shortName. If both are missing, uses the basename of the script
-longName="defaultScriptTemplate"
-#shortName="dst"
+longName="vlcControlScript"
+#shortName="vcs"
 
 ### Functions
 
