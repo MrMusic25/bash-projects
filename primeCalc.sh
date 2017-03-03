@@ -2,7 +2,7 @@
 #
 # scriptTest.sh - A script to test ideas before implementation
 
-source commonFunctions.sh
+source /usr/share/commonFunctions.sh
 
 number=7
 primes=3 # 1,3,5 are prime
@@ -20,9 +20,17 @@ function testPrime() {
 	((primes++))
 }
 
-while true; 
-do
-	testPrime $number
-	(($number))
-done
+function threader() {
+	while true;
+	do
+		checkout wait primeLock
+		local newNum=$number
+		(($number+=2))
+		checkout done primeLock
+		testPrime $newNum
+	done
+}
+
+echo "Starting calculations!"
+sem -j 4 -- threader
 #EOF
