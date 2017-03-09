@@ -5,6 +5,13 @@
 # If it finds its name in the exclude list of the downloaded script, it will exit
 #
 # Changes:
+# v1.3.0
+# - Removed ping test, as it is useless (ICMP blocked in some cases, yields no results, continues on failure anyways)
+# - Added determineServer()
+# - Script can now use backup servers located at /usr/share/server.secondary and /usr/share/server.tertiary
+# - displayHelp(), processArgs(), and installScript() updated accordingly
+# - The above line took an hour while half asleep to complete, so I added this line to look more productive
+#
 # v1.2.0
 # - Felt this change warranted a new version number
 # - Added the non-root functionality, and code to help setup new user for scripts that require a non-root
@@ -85,18 +92,23 @@
 # - In daemon mode, no interactive stuff allowed (not that there should be much anways)
 # - Look for existing instances of this script before running, in case commands take a long time OR a loop is accidentally created, wasting CPU
 #
-# v1.2.0, 22 Feb. 2017 01:19 PST
+# v1.3.0, 09 Mar. 2017 00:32 PST
 
 ### Variables
 
 hostname="$(cat /etc/hostname 2>/dev/null)" # Setup by default in every distro I have used
 server="$(cat /usr/share/server 2>/dev/null)" # Default place this script will store server address, which could be a static IP (local) or a hostname/domain (internet)
+secondary="$(cat /usr/share/server.secondary 2>/dev/null)"
+tertiary="$(cat /usr/share/server.tertiary 2>/dev/null)"
 serverPort=80 # This makes firewall handling easier. 8080 and 443 might be other good options, might be used later in this script
 defaultInterval=1 # Number of minutes between checks. Only used when setting up cron
 selfScript="$HOME"/selfScript # These two lines are used to make sure only one copy of each script can run at the same time
 allScript="$HOME"/allScript
 quitPing=0 # Tells computer whether to quit if ping is unsuccessful
 daemon=0
+manualServer=0 # Script will respect user's server choice; otherwise backups will be tested
+longName="commandFetch"
+shortName="cF"
 
 ### Functions
 
@@ -139,6 +151,7 @@ Options:
 -s | --server <address>    : Specify the IP address/host/domain name to check with. Will NOT update the default address!
 -p | --port <port_num>     : Specify the port to use with curl
 -h | --hostname <name>     : Changes the hostname to check against the server with
+-b | --backup <address>    : Backup server to use. Can be used twice for secondary and tertiary, respectively. Other instances will be ignored.
 -i | --install [user]      : Install script as cronjob, with option to do so as current user (default is root)
 -v | --verbose             : Enable verbose mode. Note: MUST be the first argument!
 
@@ -157,6 +170,7 @@ function processArgs() {
 	fi
 	
 	argCount=1
+	bcount=0
 	args="$#"
 	while [[ $loopFlag -eq 0 ]]; do
 		key="$1"
@@ -179,6 +193,29 @@ function processArgs() {
 			debug "INFO: Server temporarily set to: $server"
 			shift
 			((argCount++))
+			;;
+			-b|--backup)
+			if [[ -z $2 ]]; then
+				debug "l2" "ERROR: No backup server given with $key option!"
+				# Don't exit, as backup is technically not necessary
+			else
+				case $bcount in # Again, assuming the user knows what they're doing. Only doing an empty field check
+					0)
+					secondary="$2"
+					debug "INFO: Secondary server set to $secondary"
+					((bcount++))
+					;;
+					1)
+					tertiary="$2"
+					debug "INFO: Tertiary server set to $tertiary"
+					((bcount++))
+					;;
+					*)
+					debug "WARN: Secondary and tertiary servers already set, ignoring given servber $2"
+					;;
+				esac
+				shift
+			fi
 			;;
 			-p|--port)
 			if [[ -z $2 ]]; then
@@ -233,6 +270,7 @@ function processArgs() {
 function installScript() {
 	# Skip this if daemon mode on
 	if [[ $daemon -ne 0 ]]; then
+		debug "l2" "WARN: Daemon mode enabled, skipping installation!"
 		return
 	fi
 	
@@ -273,8 +311,19 @@ function installScript() {
 	
 	# At this point, either the default server is unset or the user wishes to change it
 	read -p "Please type the IP address, hostname, or domain name of the default server: " server
-	debug "Changing default server to: $server"
+	debug "INFO: Changing default server to: $server"
 	echo "$server" | sudo tee /usr/share/server > /dev/null
+	
+	getUserAnswer "Would you like to set the backup server(s) as well?" secondary "Please enter the IP address or hostname of the secondary server."
+	if [[ $? -eq 0 ]]; then
+		echo "$secondary" | sudo tee /usr/share/server.secondary > /dev/null
+		debug "INFO: Secondary server set to $secondary"
+		getUserAnswer "Would you like to set a tertiary server as well?" tertiary "Please enter the IP address or hostname of the tertiary server."
+		if [[ $? -eq 0 ]]; then
+			echo "$tertiary" | sudo tee /usr/share/server.tertiary > /dev/null
+			debug "INFO: Tertiary server set to $tertiary"
+		fi
+	fi
 	setupUser # Sets up the default non-root user for scripts that require it
 }
 
@@ -417,6 +466,68 @@ function setupUser() {
 	esac
 }
 
+function determineServer() {
+	# ICMP may be blocked in some cases, so ping is useless. Removed this test.
+	# Better way - test to see if port is open; added req for netcat
+	if [[ -z $server ]]; then
+		debug "WARN: No server given and /usr/share/server is empty!"
+		if [[ -z $secondary && -z $tertiary ]]; then # If one is present the logic will fail and script will continue
+			debug "l2" "ERROR: Main server missing and no backup servers given, exiting script!"
+			exit 1
+		fi
+	else
+		nc -z -w5 "$server" "$serverPort"
+		case $? in
+			0)
+			debug "INFO: Server port is open, moving on!"
+			return 0
+			;;
+			*)
+			debug "l2" "ERROR: Port $serverPort on $server is not open, or server is unresponsive."
+			;;
+		esac
+	fi
+	
+	# Skip checking backup servers if manual server is set
+	if [[ $manualServer -ne 0 && -z $secondary ]]; then
+		debug "l2" "FATAL: Server was manually set and no backups given! Exiting script..."
+		exit 1
+	fi
+	
+	# At this point, server is unset but secondary is given; check it before moving to tertiary
+	nc -z -w5 "$secondary" "$serverPort"
+	case $? in
+		0)
+		debug "INFO: Secondary server is up! Using it for rest of script..."
+		server="$secondary"
+		return 0
+		;;
+		*)
+		debug "l2" "ERROR: Port $serverPort on $secondary is not open, or server is unresponsive."
+		;;
+	esac
+	
+	# Finally, check the tertiary, if the server exists
+	if [[ -z $tertiary ]]; then
+		debug "l2" "FATAL: Main and secondary servers failed, and no tertiary given. Quitting script!"
+		exit 1
+	else
+		# Tertiary is set
+		nc -z -w5 "$tertiary" "$serverPort"
+		case $? in
+			0)
+			debug "INFO: Tertiary server is up! Using it for rest of script..."
+			server="$tertiary"
+			return 0
+			;;
+			*)
+			debug "l2" "FATAL: Main server and backups are all down! Exiting script..."
+			exit 1 # All is lost
+			;;
+		esac
+	fi
+}
+
 ### Main Script
 
 # Link the script to /usr/bin if not already there
@@ -447,43 +558,7 @@ do
 	break # I only wanted to run the loop once, but couldn't find a way to break from anything but a while loop
 done
 nonRootUser="$(cat /usr/share/nonRootUser)"
-
-if [[ -z "$server" && ! -e "/usr/share/server" ]]; then
-	debug "FATAL: No server given, and no default server found at /usr/share/server! Please fix and re-run!"
-	# Tried to let debug handle this, but there was too much info to give
-	announce "Server is not set and is not given as an option!" "Please set the default server in /usr/share/server" "Or, re-run the script with the -s <server> option!"
-	sleep 3
-	exit 1
-fi
-
-# Test to see if server is up
-ping -c 5 "$server"
-value="$?"
-case $value in
-	0)
-	debug "Server is responsive, continuing"
-	;;
-	*)
-	if [[ "$quitPing" -eq 0 ]]; then
-		debug "l2" "WARN: Server unresponsive, ICMP may be blocked or server is down. Attempting to continue... (Ping value: $value)"
-	else
-		debug "l2" "WARN: Server unresponsive, quitting by user decision! (Ping value: $value)"
-		exit 1
-	fi
-	;;
-esac
-
-# Better way - test to see if port is open; added req for netcat
-nc -z -w5 "$server" "$serverPort"
-case $? in
-	0)
-	debug "INFO: Server port is open, moving on!"
-	;;
-	*)
-	debug "l2" "ERROR: Port $serverPort on $server is not open, or server is unresponsive. Quitting script for now!"
-	exit 1
-	;;
-esac
+determineServer # Sets $server for the rest of the script
 
 # Server is up and available if it makes it this far
 serverURL="http://$server:$serverPort"
@@ -504,7 +579,6 @@ chmod +x "$scriptFile"
 # *drum roll*
 # TAH-DAH!!!!!!
 eval "$scriptFile"
-
 # ..... Had to put those comments, because this felt like the most uneventful thing to happen to a 400+ line project lol
 # ANYWAYS....... xD
 
