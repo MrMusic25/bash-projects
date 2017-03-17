@@ -4,6 +4,10 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.1.13
+# - Added deleteFolderProcessor() in prep for file deletion
+# - Made some small changes to debug statements
+#
 # v1.1.12
 # - Added $longName for better logging
 #
@@ -118,7 +122,7 @@
 #     ~ if [[ $lokc -eq 1 ]]; then wait 2s; fi
 #   ~ Find a way to isolate the function for each thred so they don't overwrite each other's local vars
 #
-# v1.1.12, 16 Feb. 2016 22:01 PST
+# v1.1.13, 16 Mar. 2016 18:17 PST
 
 ### Variables
 
@@ -246,9 +250,42 @@ echo "$helpVar"
 }
 
 function deleteOldSongs() {
-debug "User chose to delete old songs! Running..."
+	debug "WARN: User chose to delete old songs! Running..."
+	
 }
 
+function deleteFolderProcessor() {
+	if [[ -z "$1" ]]; then
+		debug "l2" "ERROR: Incorrect call for deleteFolderProcessor(), add the directory to process as an argument!"
+	fi
+	local directory="$1"
+	
+	# Make sure we can get into the directory
+	local OPWD="$(pwd)"
+	cd "$directory"
+	if [[ $? -ne 0 ]]; then
+		debug "l2" "FATAL: Directory $directory could not be found!"
+		return 1
+	fi
+	
+	# Now, crawl through the directory
+	if [[ -z "$(ls)" ]]; then
+		debug "l2" "WARN: Directory $directory is empty! Removing..."
+		cd $OPWD
+		rm $directory # Tested, this will NOT delete parent directory
+		return 0 # A success!
+	fi
+	
+	for song in *.mp3;
+	do
+		songs="$(echo "$song" | rev | cut -d'.' -f1 --complement | rev)"
+		if [[ -z "$(echo "${convertedPaths[@]}" | grep -i "$songs") 2>/dev/null" ]]; then # If file name not present... Possible false-positive in album mode, but not a big deal
+			debug "l2" "WARN: $song was not found in playlist! Deleting..."
+			sleep 1 # Meant as a debug step - time to stop function if it does the wrong thing, before too much damage is done
+			rm "$song"
+		fi
+	done
+}
 function processArgs() {
 	if [[ "$1" == "-h" || "$1" == "--help" ]]; then
 		displayHelp
@@ -718,7 +755,7 @@ if [[ ! -d "$outputFolder" ]]; then
 	getUserAnswer "n" "Would you like to attempt to make this directory? (Be careful!)"
 	case $? in
 		0)
-		debug "Attempting to create directory..."
+		debug "INFO: Attempting to create directory..."
 		mkdir "$outputFolder"
 		folderTest "$outputFolder"
 		value=$?
@@ -727,7 +764,7 @@ if [[ ! -d "$outputFolder" ]]; then
 			debug "l3" "Folder $outputFolder created successfully! Moving on..."
 			;;
 			*)
-			debug "l2" "Error while attemping to create folder: exit status $value"
+			debug "l2" "FATAL: Error while attemping to create folder: exit status $value"
 			announce "Please fix the error and re-run the script!"
 			displayHelp
 			exit $value
@@ -735,13 +772,13 @@ if [[ ! -d "$outputFolder" ]]; then
 		esac
 		;;
 		1)
-		debug "User decided not to make new folder, exiting script..."
+		debug "WARN: User decided not to make new folder, exiting script..."
 		announce "Please find another directory and re-run the script!"
 		displayHelp
 		exit 1
 		;;
 		*)
-		debug "l2" " ERROR: Unknown exit status!"
+		debug "l2" "ERROR: Unknown exit status!"
 		displayHelp
 		exit 1
 		;;
@@ -758,11 +795,11 @@ converterLoop
 #outputFailures # More debugging
 
 if [[ "${#failedSongs[@]}" -ne 0 ]]; then
-	debug "l2" "Attempting to convert failed songs..."
+	debug "l2" "INFO: Attempting to convert failed songs..."
 	processFailures
 fi
 
 announce "Script has completed successfully!" "Please consult log for any file that could not be converted!"
-debug "Total songs: $total, converted songs: $songsConverted, failed songs: $failures, fixed songs: $fixedFailures"
+debug "INFO: Total songs: $total, converted songs: $songsConverted, failed songs: $failures, fixed songs: $fixedFailures"
 
 #EOF
