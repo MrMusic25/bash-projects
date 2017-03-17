@@ -4,6 +4,12 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.2.0
+# - Finished writing deleteOldSongs() and deleteFolderProcessor()
+# - Added delete ability to script, gives a warnign beforehand
+# - Like always, untested for now (gotta break this habit... one day...)
+# - Minor text fixes
+#
 # v1.1.13
 # - Added deleteFolderProcessor() in prep for file deletion
 # - Made some small changes to debug statements
@@ -122,7 +128,7 @@
 #     ~ if [[ $lokc -eq 1 ]]; then wait 2s; fi
 #   ~ Find a way to isolate the function for each thred so they don't overwrite each other's local vars
 #
-# v1.1.13, 16 Mar. 2016 18:17 PST
+# v1.2.0, 17 Mar. 2016 11:25 PST
 
 ### Variables
 
@@ -252,8 +258,52 @@ echo "$helpVar"
 function deleteOldSongs() {
 	debug "WARN: User chose to delete old songs! Running..."
 	
+	case "$preserveLevel" in
+		none)
+		debug "INFO: Deleting files in $outputFolder!"
+		deleteFolderProcessor "$outputFolder"
+		;;
+		artist)
+		debug "INFO: Deleting files from artist folders, beginning crawl!"
+		local OPWD="$(pwd)"
+		cd "$outputFolder"
+		for folder in "$(ls -d */)";
+		do
+			debug "l5" "INFO: Deleting files from $folder"
+			deleteFolderProcessor "$folder"
+		done
+		cd "$OPWD"
+		;;
+		album)
+		debug "INFO: Deleting files from album folders, beginning artist crawl!"
+		local OOPWD="$(pwd)"
+		cd "$outputFolder"
+		for folder in "$(ls -d */)";
+		do
+			debug "l5" "INFO: Beginning deletion crawl through artist folder $folder"
+			local OPWD="$folder"
+			cd "$folder"
+			for subdir in "$(ls -f */)";
+			do
+				debug "l5" "INFO: Deleting files from album folder $subdir"
+				deleteFolderProcessor "$subdir"
+			done
+			# Now, scan the parent folder in case it also has problems
+			cd "$OPWD"
+			# TODO: Decide if I want to crawl through artist folder as well, forcing album mode. Pro/con?
+			# Use 'find -maxdepth 1 -type f' to find only files (includes hidden files, though)
+		done
+		cd "$OOPWD"
+		;;
+		*)
+		debug "l2" "FATAL: No clue how you made it this far, but unknown preserveLevel $preserveLevel"
+		exit 1
+		;;
+	esac
+	debug "l2" "INFO: Done deleting songs!"
 }
 
+# Give me a folder. If it's empty, I'll delete it. Else, I will crawl through it and delete songs no longer in the convertedPaths[]
 function deleteFolderProcessor() {
 	if [[ -z "$1" ]]; then
 		debug "l2" "ERROR: Incorrect call for deleteFolderProcessor(), add the directory to process as an argument!"
@@ -269,23 +319,30 @@ function deleteFolderProcessor() {
 	fi
 	
 	# Now, crawl through the directory
-	if [[ -z "$(ls)" ]]; then
-		debug "l2" "WARN: Directory $directory is empty! Removing..."
-		cd $OPWD
-		rm $directory # Tested, this will NOT delete parent directory
-		return 0 # A success!
-	fi
-	
 	for song in *.mp3;
 	do
 		songs="$(echo "$song" | rev | cut -d'.' -f1 --complement | rev)"
+		if [[ "$songs" == *(* ]]; then
+			songs="$(echo "$songs" | cut -d'(' -f1)" # Gets rid of (1), (2), (feat.), etc.
+		fi
 		if [[ -z "$(echo "${convertedPaths[@]}" | grep -i "$songs") 2>/dev/null" ]]; then # If file name not present... Possible false-positive in album mode, but not a big deal
 			debug "l2" "WARN: $song was not found in playlist! Deleting..."
 			sleep 1 # Meant as a debug step - time to stop function if it does the wrong thing, before too much damage is done
 			rm "$song"
 		fi
 	done
+	
+	# Now, check to see if directory is empty after this
+	if [[ -z "$(ls)" ]]; then
+		debug "l2" "WARN: Directory $directory is empty! Removing..."
+		cd $OPWD
+		rmdir $directory # Tested, this will NOT delete parent directory
+		return 0 # A success!
+	fi
+	cd "$OPWD"
+	# This process may take a while, which is why you should only run it when you have actually deleted songs from a playlist. May or may not add progress tracker, will test.
 }
+
 function processArgs() {
 	if [[ "$1" == "-h" || "$1" == "--help" ]]; then
 		displayHelp
@@ -342,6 +399,7 @@ function processArgs() {
 			exit 0
 			;;
 			-d|--delete)
+			debug "WARN: User has requested to delete old songs at the end"
 			deleteMode="1" # If var is present, run deleteOldSongs(). This value could technically be anything
 			;;
 			-n|--no-overwrite)
@@ -797,6 +855,12 @@ converterLoop
 if [[ "${#failedSongs[@]}" -ne 0 ]]; then
 	debug "l2" "INFO: Attempting to convert failed songs..."
 	processFailures
+fi
+
+# Delete songs if user requests it
+if [[ "$deleteMode" -eq 1 ]]; then
+	debug "l3" "WARN: Script will now attempt to delete old songs! Keep an eye on the progress, CTRL+C immidiately if you see something wrong!"
+	deleteOldSongs
 fi
 
 announce "Script has completed successfully!" "Please consult log for any file that could not be converted!"
