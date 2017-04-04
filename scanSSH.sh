@@ -1,7 +1,7 @@
 #!/bin/bash
-start=90
-end=105
-network="10.100.43."
+start=40
+end=60
+network="10.100.41."
 
 for addr in $(seq "$start" "$end");
 do
