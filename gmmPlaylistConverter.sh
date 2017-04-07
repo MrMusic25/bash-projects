@@ -4,6 +4,14 @@
 # Based on the Python script I wrote, which will be uploaded later
 #
 # Changes:
+# v0.1.0
+# - Can't believe I forgot to include the base search directory as an argument... smh
+# - Added folderCrawler()
+# - More work on script as a whole
+#
+# v0.0.3
+# - Can't escape those minor text fixes
+#
 # v.0.0.2
 # - Added -m|--manual-hierarchy and related variables
 # - Added -n|--no-compilations and related variables
@@ -16,7 +24,7 @@
 #
 # TODO:
 #
-# v0.0.2, 07 Apr. 2017, 10:00 PST
+# v0.1.0, 07 Apr. 2017, 12:20 PST
 
 ### Variables
 
@@ -25,6 +33,7 @@ shortName="gmmc" # Was gonna put "gpc", but that might have been confusing lol
 hierarchy=3 # Default, for Artist-Album-Title folders. Can be changed if, say, you are searching an unknown depth of folders
 compilations=1 # Define whether or not to search in the common iTunes folder "Compilations/"
 textFile="NULL" # https://i.redd.it/2u9lbxq9nxpy.jpg
+baseDirectory="NULL" # Where to begin searching for songs, by default. Should be the main Music folder
 
 ### Functions
 
@@ -45,7 +54,7 @@ read -d '' helpVar <<"endHelp"
 
 gmmPlaylistConverter.sh - Convert a .txt file from GMM to an M3U file for m2u.sh
 
-Usage: ./gmmc [options] <text_file> [output_filename]
+Usage: ./gmmc [options] <text_file> <music_directory> [output_filename]
 If output filename is omitted, script will use the same name as the input
 
 Options:
@@ -74,7 +83,19 @@ function processArgs() {
 		
 		if [[ -f "$key" ]]; then
 			textFile="$key"
-			loopFlag=1 # This will kill the loop, and the function. A 'return' statement would also work here.
+			if [[ -z $2 || ! -d "$2" ]]; then
+				debug "l2" "FATAL: Incorrect call for script! Please fix and re-run"
+				displayHelp
+				exit 1
+			else
+				baseDirectory="$2"
+			fi
+			
+			if [[ ! -z $3 ]]; then
+				outputFile="$3" # These should be the last three args
+				
+			fi
+			loopFlag=1
 		fi
 			
 		case "$key" in
@@ -83,11 +104,11 @@ function processArgs() {
 			exit 0
 			;;
 			-m|--man*) # What a DASHING young MAN!
-			if [[ -z $2 ]];
+			if [[ -z $2 ]]; then
 				debug "l2" "ERRROR: Incorrect call for $key! No argument given! Please fix and run again!"
 				displayHelp
 				exit 1
-			elif [[ "$2" -ne "$2" ]]; # Quick way to test if $2 is an interger
+			elif [[ "$2" -ne "$2" ]]; then # Quick way to test if $2 is an interger
 				debug "l2" "ERROR: $2 is not an interger! Please fix and re-run!"
 				displayHelp
 				exit 1
@@ -112,9 +133,31 @@ function processArgs() {
 	done
 }
 
+function folderCrawler() {
+	
+}
 ### Main Script
 
 processArgs "$@"
 # Remember that sweet magic trick your teacher did as you were writing this perp? The one with the card in the girl's test? Yeah....
+
+# Making it this far means file is ready for import, let's begin!
+if [[ -z $outputFile ]]; then
+	if [[ "$textFile" == *. ]]; then
+		outputFile="$textFile" # Text file has no extension
+	else
+		outputFile="$(echo "$textFile" | rev | cut -d'.' -f1 --complement | rev)"
+	fi
+fi
+
+# Now the output file is set
+importText "$textFile" textContents
+OPWD="$(pwd)"
+cd "$baseDirectory"
+declare -a m3uItems
+for song in "$textContents[@]"
+do
+	folderCrawler "$song" "$outputFile"
+done
 
 #EOF
