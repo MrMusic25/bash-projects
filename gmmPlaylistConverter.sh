@@ -4,20 +4,27 @@
 # Based on the Python script I wrote, which will be uploaded later
 #
 # Changes:
+# v.0.0.2
+# - Added -m|--manual-hierarchy and related variables
+# - Added -n|--no-compilations and related variables
+# - Got rid of more of the script template crap
+# - Side note: I love how EVERY time I go to commit, I think of a new ides to quickly add lol
+#
 # v0.0.1
 # - Initial version
 # - defaultTemplate -> gmmc.sh prep
 #
 # TODO:
 #
-# v0.0.1, 07 Apr. 2017, 09:24 PST
+# v0.0.2, 07 Apr. 2017, 10:00 PST
 
 ### Variables
 
-# These variables are used for logging
-# longName is preferred, if it is missing it will use shortName. If both are missing, uses the basename of the script
 longName="gmmPlaylistConverter"
 shortName="gmmc" # Was gonna put "gpc", but that might have been confusing lol
+hierarchy=3 # Default, for Artist-Album-Title folders. Can be changed if, say, you are searching an unknown depth of folders
+compilations=1 # Define whether or not to search in the common iTunes folder "Compilations/"
+textFile="NULL" # https://i.redd.it/2u9lbxq9nxpy.jpg
 
 ### Functions
 
@@ -34,8 +41,6 @@ else
 fi
 
 function displayHelp() {
-# The following will read all text between the words 'helpVar' into the variable $helpVar
-# The echo at the end will output it, exactly as shown, to the user
 read -d '' helpVar <<"endHelp"
 
 gmmPlaylistConverter.sh - Convert a .txt file from GMM to an M3U file for m2u.sh
@@ -44,39 +49,31 @@ Usage: ./gmmc [options] <text_file> [output_filename]
 If output filename is omitted, script will use the same name as the input
 
 Options:
--h | --help                         : Display this help message and exit
--v | --verbose                      : Prints verbose debug information. MUST be the first argument!
+-h | --help                           : Display this help message and exit
+-v | --verbose                        : Prints verbose debug information. MUST be the first argument!
+-m | --manual-hierarchy <interger>    : Manually set the number of folders to search for unknown files
+-n | --no-compilations                : Turns off automatic searching of the iTunes' Compilations folder on primary search failure
 
 Names in the text file should be formatted like: Artist-Album-Title
-This is the usual file heirarchy. Modify the script if yours is different
+This is the usual file hierarchy. Modify the script if yours is different
+Each song needs MINIMUM of two pieces of information to be found: title, and either artist or album
 
 endHelp
 echo "$helpVar"
 }
 
 function processArgs() {
-	# displayHelp and exit if there is less than the required number of arguments
-	# Remember to change this as your requirements change!
 	if [[ $# -lt 1 ]]; then
 		debug "l2" "ERROR: No arguments given! Please fix and re-run"
 		displayHelp
 		exit 1
 	fi
 	
-	# This is an example of how most of my argument processors look
-	# Psuedo-code: until condition is met, change values based on input; shift variable, then repeat
 	while [[ $loopFlag -eq 0 ]]; do
 		key="$1"
 		
-		# In this example, if $key and $2 are a file and a directory, then processing arguments can end. Otherwise it will loop forever
-		# This is also where you would include code for optional 3rd argument, otherwise it will never be processed
-		if [[ -f "$key" && -d "$2" ]]; then
-			inputFile="$key"
-			outputDir="$2"
-			
-			if [[ -f "$3" ]]; then
-				tmpDir="$3"
-			fi
+		if [[ -f "$key" ]]; then
+			textFile="$key"
 			loopFlag=1 # This will kill the loop, and the function. A 'return' statement would also work here.
 		fi
 			
@@ -84,8 +81,28 @@ function processArgs() {
 			-h|--help)
 			displayHelp
 			exit 0
+			;;
+			-m|--man*) # What a DASHING young MAN!
+			if [[ -z $2 ]];
+				debug "l2" "ERRROR: Incorrect call for $key! No argument given! Please fix and run again!"
+				displayHelp
+				exit 1
+			elif [[ "$2" -ne "$2" ]]; # Quick way to test if $2 is an interger
+				debug "l2" "ERROR: $2 is not an interger! Please fix and re-run!"
+				displayHelp
+				exit 1
+			else
+				hierarchy="$2"
+				manualHierarchy=1
+				debug "INFO: Manual hierarchy is set to $hierarchy"
+				shift
+			fi
+			;;
+			-n|--no*)
+			debug "INFO: Compilations folder will not be searched!"
+			compilations=0
+			;;
 			*)
-			# Anything here is undocumented or uncoded. Up to user whether or not to continue, but it is recommended to exit here if triggered
 			debug "l2" "ERROR: Unknown option given: $key! Please fix and re-run"
 			displayHelp
 			exit 1
@@ -97,7 +114,7 @@ function processArgs() {
 
 ### Main Script
 
-processArgs "$@" # Make sure to include the "$@" at the end of the call, otherwise function will not work
+processArgs "$@"
 # Remember that sweet magic trick your teacher did as you were writing this perp? The one with the card in the girl's test? Yeah....
 
 #EOF
