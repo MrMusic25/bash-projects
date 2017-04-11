@@ -155,7 +155,7 @@ importText "$textFile" textContents
 OPWD="$(pwd)"
 cd "$baseDirectory"
 declare -a m3uItems
-for song in "$textContents[@]"
+for song in "${textContents[@]}";
 do
 	folderCrawler "$song" "$outputFile"
 done
