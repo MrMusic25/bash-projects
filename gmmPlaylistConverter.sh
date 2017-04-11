@@ -4,6 +4,9 @@
 # Based on the Python script I wrote, which will be uploaded later
 #
 # Changes:
+# v0.1.1
+# - Started doing some work, then got confused... Need to make a tree diagram, brb
+#
 # v0.1.0
 # - Can't believe I forgot to include the base search directory as an argument... smh
 # - Added folderCrawler()
@@ -24,7 +27,7 @@
 #
 # TODO:
 #
-# v0.1.0, 07 Apr. 2017, 12:20 PST
+# v0.1.1, 11 Apr. 2017, 14:46 PST
 
 ### Variables
 
@@ -92,8 +95,7 @@ function processArgs() {
 			fi
 			
 			if [[ ! -z $3 ]]; then
-				outputFile="$3" # These should be the last three args
-				
+				outputFile="$3" # These should be the last three args	
 			fi
 			loopFlag=1
 		fi
@@ -133,9 +135,29 @@ function processArgs() {
 	done
 }
 
+# Takes a song in the format of 'Artist-Album-Song Title' as an argument
+# Outputs the file to $m3uItems[@], if it can be found
 function folderCrawler() {
+	string="$1"
+	album="$(echo "$string" | cut -d'-' -f1)"
+	artist="$(echo "$string" | cut -d'-' -f2)"
+	title="$(echo "$string" | cut -d'-' -f3)"
 	
+	# Make sure the most important piece of information is set
+	if [[ -z $title ]]; then
+		debug "l2" "ERROR: No title for string $string, cannot complete! Please find file manually!"
+		return 1
+	fi
+	
+	# Next, make sure the album is set (2nd most important)
+	if [[ -z $album ]]; then
+		debug "l2" "WARN: Album is not set for string $string! Attempting to continue..."
+	fi
+	
+	# Now start searching
+	PPWD="$(pwd)"
 }
+
 ### Main Script
 
 processArgs "$@"
@@ -157,7 +179,7 @@ cd "$baseDirectory"
 declare -a m3uItems
 for song in "${textContents[@]}";
 do
-	folderCrawler "$song" "$outputFile"
+	folderCrawler "$song"
 done
 
 #EOF
