@@ -4,6 +4,11 @@
 # Based on the Python script I wrote, which will be uploaded later
 #
 # Changes:
+# v0.2.0
+# - Updated variables to locals for safety in folderCrawler()
+# - Universal delimiter for the same reason
+# - Made new function attempt(), which tried entering the directory, and checks for spelling errors
+#
 # v0.1.1
 # - Started doing some work, then got confused... Need to make a tree diagram, brb
 #
@@ -27,7 +32,7 @@
 #
 # TODO:
 #
-# v0.1.1, 11 Apr. 2017, 14:46 PST
+# v0.2.0, 25 Apr. 2017, 18:12 PST
 
 ### Variables
 
@@ -37,6 +42,7 @@ hierarchy=3 # Default, for Artist-Album-Title folders. Can be changed if, say, y
 compilations=1 # Define whether or not to search in the common iTunes folder "Compilations/"
 textFile="NULL" # https://i.redd.it/2u9lbxq9nxpy.jpg
 baseDirectory="NULL" # Where to begin searching for songs, by default. Should be the main Music folder
+delim='-' # Makes it easier to change the delimiter, if I find unsupported songs
 
 ### Functions
 
@@ -138,10 +144,10 @@ function processArgs() {
 # Takes a song in the format of 'Artist-Album-Song Title' as an argument
 # Outputs the file to $m3uItems[@], if it can be found
 function folderCrawler() {
-	string="$1"
-	album="$(echo "$string" | cut -d'-' -f1)"
-	artist="$(echo "$string" | cut -d'-' -f2)"
-	title="$(echo "$string" | cut -d'-' -f3)"
+	local string="$1"
+	local album="$(echo "$string" | cut -d "$delim" -f1)"
+	local artist="$(echo "$string" | cut -d "$delim" -f2)"
+	local title="$(echo "$string" | cut -d "$delim" -f3)"
 	
 	# Make sure the most important piece of information is set
 	if [[ -z $title ]]; then
@@ -156,6 +162,32 @@ function folderCrawler() {
 	
 	# Now start searching
 	PPWD="$(pwd)"
+	attempt "$artist"
+}
+
+# Input: the name of a folder
+# Output: Nothing if successful. If it fails the cd and the secondary spellcheck, it will output an error
+# Return value: 0 on success, 1 if folder could not be found
+# NOTE: This function WILL change the working directory, be sure to save it beforehand!
+function attempt() {
+	local tryDir="$1"
+	if [[ -d "$tryDir" ]]; then
+		debug "l5" "INFO: $tryDir is a valid directory, changing!"
+		cd "$tryDir"
+		return 0
+	fi
+	
+	# Now attempting spellcheck
+	local newDir="$(find "$(pwd)" -iname "$tryDir*" -print0)" # Should containt the most likely directory
+	if [[ -d "$newDir" ]]; then
+		debug "l5" "WARN: Folder $newDir was found through spellcheck, changing now!"
+		cd "$newDir"
+		return  
+	else
+		debug "l2" "ERROR: Could not find a valid folder $tryDir!"
+		return 1
+	fi
+	return 1 # Just in case it made it this far, an error has occurred
 }
 
 ### Main Script
