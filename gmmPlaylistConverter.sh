@@ -4,6 +4,10 @@
 # Based on the Python script I wrote, which will be uploaded later
 #
 # Changes:
+# v0.3.0
+# - Added cycleUnnowns(), which checks Compilations and other folders
+# - Not done with it, but committing
+#
 # v0.2.0
 # - Updated variables to locals for safety in folderCrawler()
 # - Universal delimiter for the same reason
@@ -32,7 +36,7 @@
 #
 # TODO:
 #
-# v0.2.0, 25 Apr. 2017, 18:12 PST
+# v0.3.0, 28 Apr. 2017, 09:54 PST
 
 ### Variables
 
@@ -144,10 +148,14 @@ function processArgs() {
 # Takes a song in the format of 'Artist-Album-Song Title' as an argument
 # Outputs the file to $m3uItems[@], if it can be found
 function folderCrawler() {
-	local string="$1"
-	local album="$(echo "$string" | cut -d "$delim" -f1)"
-	local artist="$(echo "$string" | cut -d "$delim" -f2)"
-	local title="$(echo "$string" | cut -d "$delim" -f3)"
+	local string
+	local artist
+	local album
+	local title # SC2155
+	string="$1"
+	album="$(echo "$string" | cut -d "$delim" -f1)"
+	artist="$(echo "$string" | cut -d "$delim" -f2)"
+	title="$(echo "$string" | cut -d "$delim" -f3)"
 	
 	# Make sure the most important piece of information is set
 	if [[ -z $title ]]; then
@@ -163,6 +171,12 @@ function folderCrawler() {
 	# Now start searching
 	PPWD="$(pwd)"
 	attempt "$artist"
+	if [[ "$?" -ne 0 ]]; then
+		debug "l5" "WARN: Artist folder $folder does not exist! Checking compilations and unknown folders..."
+		cycleUnknowns "$album" "$title" # The function handles the rest, including output, so we can safely return now
+		return $?
+	fi
+		
 }
 
 # Input: the name of a folder
@@ -170,7 +184,8 @@ function folderCrawler() {
 # Return value: 0 on success, 1 if folder could not be found
 # NOTE: This function WILL change the working directory, be sure to save it beforehand!
 function attempt() {
-	local tryDir="$1"
+	local tryDir
+	tryDir="$1"
 	if [[ -d "$tryDir" ]]; then
 		debug "l5" "INFO: $tryDir is a valid directory, changing!"
 		cd "$tryDir"
@@ -178,11 +193,12 @@ function attempt() {
 	fi
 	
 	# Now attempting spellcheck
-	local newDir="$(find "$(pwd)" -iname "$tryDir*" -print0)" # Should containt the most likely directory
+	local newDir
+	newDir="$(find "$(pwd)" -iname "$tryDir*" -print0)" # Should containt the most likely directory
 	if [[ -d "$newDir" ]]; then
 		debug "l5" "WARN: Folder $newDir was found through spellcheck, changing now!"
 		cd "$newDir"
-		return  
+		return 0
 	else
 		debug "l2" "ERROR: Could not find a valid folder $tryDir!"
 		return 1
@@ -190,6 +206,39 @@ function attempt() {
 	return 1 # Just in case it made it this far, an error has occurred
 }
 
+# Input: Album folder, song title
+# Output: Debug, only on error. Changes directory if file found
+function cycleUnknowns() {
+	local album
+	local newAlbum
+	local title
+	local newTitle
+	album="$1"
+	title="$2"
+	NPWD="$(pwd)" # This can be safely used, shouldn't have changed if it made it this far
+	
+	# Time for some ugly, nested if statements!
+	if [[ -d Compilations ]]; then
+		# Compilations exists. Check for folder
+		cd Compilations
+		newAlbum="$(find . -maxdepth 1 -iname "$album*" -print0 | cut -d'/' -f2)"
+		if [[ ! -z "$newAlbum" ]]; then
+			debug "l5" "INFO: Album folder was found in Compilations! Checking for song..."
+			cd "$newAlbum"
+			newTitle="$(find . -maxdepth 1 -iname "$title*" -print0 | cut -d'/' -f2)"
+			if [[ ! -z "$newTitle" ]]; then
+				debug "l5" "INFO: Song was found in the Compilations! Adding to array and returning..."
+				m3uItems+=("$(pwd)"/"$newTitle")
+				cd "$NPWD"
+				return 0
+			fi
+		# Else, continue to other folders
+		fi
+	fi
+	
+	# Above is the template. Copy+paste for any other folder, just edit names
+	# e.g. "Unknown", "Unknown Artist", "Various", etc...
+}
 ### Main Script
 
 processArgs "$@"
