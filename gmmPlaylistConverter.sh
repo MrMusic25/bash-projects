@@ -4,6 +4,21 @@
 # Based on the Python script I wrote, which will be uploaded later
 #
 # Changes:
+# v1.0.0
+# - Ready for release!
+# - Working, minus ~10% of songs, which will be fixed via the Python script used to download the Google playlists
+# - Reasoning: sed is hard, python is easy
+#
+# v0.4.1
+# - Undid the stream editing since it helped with nothing at all... 10% is better than nothing
+#
+# v0.4.0
+# - Copy+paste x5 for official iTunes folders
+# - Added output to m3u
+# - Finished writing folderCrawler(), since I forgot to do that earlier
+# - Added an array of failed songs for easier printing after conversion
+# - Added some stream editing to the songs for failures
+#
 # v0.3.0
 # - Added cycleUnnowns(), which checks Compilations and other folders
 # - Not done with it, but committing
@@ -36,7 +51,7 @@
 #
 # TODO:
 #
-# v0.3.0, 28 Apr. 2017, 09:54 PST
+# v1.0.0, 11 May 2017, 00:56 PST
 
 ### Variables
 
@@ -46,7 +61,7 @@ hierarchy=3 # Default, for Artist-Album-Title folders. Can be changed if, say, y
 compilations=1 # Define whether or not to search in the common iTunes folder "Compilations/"
 textFile="NULL" # https://i.redd.it/2u9lbxq9nxpy.jpg
 baseDirectory="NULL" # Where to begin searching for songs, by default. Should be the main Music folder
-delim='-' # Makes it easier to change the delimiter, if I find unsupported songs
+delim='^' # Makes it easier to change the delimiter, if I find unsupported songs
 
 ### Functions
 
@@ -108,6 +123,7 @@ function processArgs() {
 				outputFile="$3" # These should be the last three args	
 			fi
 			loopFlag=1
+			return 0
 		fi
 			
 		case "$key" in
@@ -152,10 +168,14 @@ function folderCrawler() {
 	local artist
 	local album
 	local title # SC2155
+	local newString
+	local fullPath
 	string="$1"
-	album="$(echo "$string" | cut -d "$delim" -f1)"
-	artist="$(echo "$string" | cut -d "$delim" -f2)"
+	#fixedString="$(echo "$string" | sed 's/:/_/g; s/&/\\&/g; s/!/\\!/g; s/\//_/g; s/\./\\./g')"
+	album="$(echo "$string" | cut -d "$delim" -f2)"
+	artist="$(echo "$string" | cut -d "$delim" -f1)"
 	title="$(echo "$string" | cut -d "$delim" -f3)"
+	debug "l5" "INFO: Attempting to find $title in $album by $artist"
 	
 	# Make sure the most important piece of information is set
 	if [[ -z $title ]]; then
@@ -172,11 +192,33 @@ function folderCrawler() {
 	PPWD="$(pwd)"
 	attempt "$artist"
 	if [[ "$?" -ne 0 ]]; then
-		debug "l5" "WARN: Artist folder $folder does not exist! Checking compilations and unknown folders..."
-		cycleUnknowns "$album" "$title" # The function handles the rest, including output, so we can safely return now
+		debug "l5" "WARN: Artist folder $artist does not exist! Checking compilations and unknown folders..."
+		cycleUnknowns "$album" "$title" "$string" # The function handles the rest, including output, so we can safely return now
+		cd "$PPWD"
 		return $?
 	fi
-		
+	
+	attempt "$album"
+	if [[ "$?" -ne 0 ]]; then
+		debug "l2" "WARN: Album folder $album could not be found in $artist! Please find and add manually!"
+		failedStrings+=("$string")
+		cd "$PPWD"
+		return 1
+	fi
+	
+	fullPath="$(pwd)"/"$(find . -maxdepth 1 -iname "*$title*" -print0 | cut -d'/' -f2)" # Song will never show up by default
+	if [[ -z "$fullPath" || "$fullPath" == "$(pwd)*" ]]; then
+		debug "l2" "ERROR: Could not find song from string: $string . Please add manually!"
+		failedStrings+=("$string")
+		cd "$PPWD"
+		return 1
+	else
+		debug "l5" "INFO: Successfully found song from string $string!"
+		m3uItems+=("$fullPath")
+		cd "$PPWD"
+		return 0
+	fi
+	# Wew, lad
 }
 
 # Input: the name of a folder
@@ -206,13 +248,15 @@ function attempt() {
 	return 1 # Just in case it made it this far, an error has occurred
 }
 
-# Input: Album folder, song title
+# Input: Album folder, song title, ful string (in case of failure for reporting
 # Output: Debug, only on error. Changes directory if file found
 function cycleUnknowns() {
 	local album
 	local newAlbum
 	local title
 	local newTitle
+	local string
+	string="$3"
 	album="$1"
 	title="$2"
 	NPWD="$(pwd)" # This can be safely used, shouldn't have changed if it made it this far
@@ -236,8 +280,85 @@ function cycleUnknowns() {
 		fi
 	fi
 	
+	if [[ -d Unknown ]]; then
+		# Unknown exists. Check for folder
+		cd Unknown
+		newAlbum="$(find . -maxdepth 1 -iname "$album*" -print0 | cut -d'/' -f2)"
+		if [[ ! -z "$newAlbum" ]]; then
+			debug "l5" "INFO: Album folder was found in Unknown! Checking for song..."
+			cd "$newAlbum"
+			newTitle="$(find . -maxdepth 1 -iname "$title*" -print0 | cut -d'/' -f2)"
+			if [[ ! -z "$newTitle" ]]; then
+				debug "l5" "INFO: Song was found in the Unknown! Adding to array and returning..."
+				m3uItems+=("$(pwd)"/"$newTitle")
+				cd "$NPWD"
+				return 0
+			fi
+		# Else, continue to other folders
+		fi
+	fi
+	
+	if [[ -d "Unknown Artist" ]]; then
+		# "Unknown Artist" exists. Check for folder
+		cd "Unknown Artist"
+		newAlbum="$(find . -maxdepth 1 -iname "$album*" -print0 | cut -d'/' -f2)"
+		if [[ ! -z "$newAlbum" ]]; then
+			debug "l5" "INFO: Album folder was found in Unknown Artist! Checking for song..."
+			cd "$newAlbum"
+			newTitle="$(find . -maxdepth 1 -iname "$title*" -print0 | cut -d'/' -f2)"
+			if [[ ! -z "$newTitle" ]]; then
+				debug "l5" "INFO: Song was found in the Unknown Artist! Adding to array and returning..."
+				m3uItems+=("$(pwd)"/"$newTitle")
+				cd "$NPWD"
+				return 0
+			fi
+		# Else, continue to other folders
+		fi
+	fi
+	
+	if [[ -d Various ]]; then
+		# Various exists. Check for folder
+		cd Various
+		newAlbum="$(find . -maxdepth 1 -iname "$album*" -print0 | cut -d'/' -f2)"
+		if [[ ! -z "$newAlbum" ]]; then
+			debug "l5" "INFO: Album folder was found in Various! Checking for song..."
+			cd "$newAlbum"
+			newTitle="$(find . -maxdepth 1 -iname "$title*" -print0 | cut -d'/' -f2)"
+			if [[ ! -z "$newTitle" ]]; then
+				debug "l5" "INFO: Song was found in the Various! Adding to array and returning..."
+				m3uItems+=("$(pwd)"/"$newTitle")
+				cd "$NPWD"
+				return 0
+			fi
+		# Else, continue to other folders
+		fi
+	fi
+	
+	if [[ -d "Various Artists" ]]; then
+		# "Various Artists" exists. Check for folder
+		cd "Various Artists"
+		newAlbum="$(find . -maxdepth 1 -iname "$album*" -print0 | cut -d'/' -f2)"
+		if [[ ! -z "$newAlbum" ]]; then
+			debug "l5" "INFO: Album folder was found in Various Artists! Checking for song..."
+			cd "$newAlbum"
+			newTitle="$(find . -maxdepth 1 -iname "$title*" -print0 | cut -d'/' -f2)"
+			if [[ ! -z "$newTitle" ]]; then
+				debug "l5" "INFO: Song was found in the Various Artists! Adding to array and returning..."
+				m3uItems+=("$(pwd)"/"$newTitle")
+				cd "$NPWD"
+				return 0
+			fi
+		# Else, continue to other folders
+		fi
+	fi
+	
 	# Above is the template. Copy+paste for any other folder, just edit names
 	# e.g. "Unknown", "Unknown Artist", "Various", etc...
+	
+	# Getting this far, all else has failed. Report, add to array, and move on
+	debug "l2" "ERROR: Song $title could not be found from string $string! Please add manually!"
+	failedStrings+=("$string")
+	return 1
 }
 ### Main Script
 
@@ -258,9 +379,37 @@ importText "$textFile" textContents
 OPWD="$(pwd)"
 cd "$baseDirectory"
 declare -a m3uItems
+declare -a failedStrings
 for song in "${textContents[@]}";
 do
 	folderCrawler "$song"
 done
+
+# Sanity check
+if [[ -z "$m3uItems" ]]; then
+	debug "l2" "FATAL: Script dun goof'd. Either it failed or you have bad RAM. Please contact script maintainer. Exiting!"
+	exit 1
+fi
+
+# Great, let's export the new filenames now
+outFile="$outputFile".m3u
+touch "$outFile"
+for item in "${m3uItems[@]}";
+do
+	echo "$item" >> "$outFile"
+done
+
+if [[ ! -z $failedStrings ]]; then
+	pause "Press [Enter] to see a list of failed songs..."
+	for itemm in "${failedStrings[@]}"
+	do
+		printf "String: %s\n" "$itemm"
+	done
+else
+	debug "INFO: No failures while converting $textFile. Miraculous."
+fi
+
+cd "$OPWD"
+debug "l3" "INFO: Done with script! Please check $outFile!"
 
 #EOF

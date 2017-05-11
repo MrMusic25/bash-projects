@@ -322,9 +322,9 @@ function deleteFolderProcessor() {
 	for song in *.mp3;
 	do
 		songs="$(echo "$song" | rev | cut -d'.' -f1 --complement | rev)"
-		if [[ "$songs" == *(* ]]; then
-			songs="$(echo "$songs" | cut -d'(' -f1)" # Gets rid of (1), (2), (feat.), etc.
-		fi
+		#if [[ "$songs" == *(* ]]; then
+		#	songs="$(echo "$songs" | cut -d'(' -f1)" # Gets rid of (1), (2), (feat.), etc.
+		#fi
 		if [[ -z "$(echo "${convertedPaths[@]}" | grep -i "$songs") 2>/dev/null" ]]; then # If file name not present... Possible false-positive in album mode, but not a big deal
 			debug "l2" "WARN: $song was not found in playlist! Deleting..."
 			sleep 1 # Meant as a debug step - time to stop function if it does the wrong thing, before too much damage is done
