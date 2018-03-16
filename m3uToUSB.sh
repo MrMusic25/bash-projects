@@ -4,6 +4,10 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.2.1
+# - Suprisingly easy implementation of duplicate song handling for outputFile()
+# - Only took me two years to update this darn script lol. Gotta work on optimization and freezing issues on WSL soon...
+#
 # v1.2.0
 # - Finished writing deleteOldSongs() and deleteFolderProcessor()
 # - Added delete ability to script, gives a warnign beforehand
@@ -128,7 +132,7 @@
 #     ~ if [[ $lokc -eq 1 ]]; then wait 2s; fi
 #   ~ Find a way to isolate the function for each thred so they don't overwrite each other's local vars
 #
-# v1.2.0, 17 Mar. 2016 11:25 PST
+# v1.2.1, 16 Mar. 2018 11:25 PST
 
 ### Variables
 
@@ -544,12 +548,19 @@ function outputFilename() {
 	# First, we create the variables. Then, we use them based on user decision
 	artistFolder="$(echo "$1" | rev | cut -d'/' -f3 | rev)"
 	albumFolder="$(echo "$1" | rev | cut -d'/' -f2 | rev)"
-	fileName="$(echo "$1" | rev | cut -d'/' -f1 | cut -d'.' -f1 --complement | rev)"".mp3" # Wasted cycles, but who cares with today's processors?
+	fileName="$(echo "$1" | rev | cut -d'/' -f1 | cut -d'.' -f1 --complement | rev)" # Wasted cycles, but who cares with today's processors?
 	[[ ! -z $noNumbers ]] && [[ "$fileName" == [0-9]* ]] && fileName="$(echo "$fileName" | cut -d "$numberDelimiter" -f1 --complement)" # I was gonna save this for a later date, but the implementation was simple
 	
 	case "$preserveLevel" in
 		none)
 		newFile="$outputFolder"/"$fileName"
+		# This loop will handle multiple copies of similar titled songs (e.g allows Monster by Starset and Monster by Skillet in the same folder
+		# Really only applies to non-artist/album folders
+		if [[ -f "$newFile"".mp3" ]]; then
+            newFile="$newFile"-"$(ls -l "$outputFolder" | grep -i "$fileName" | wc -l)"".mp3"
+        else
+            newFile="$newFile"".mp3"
+        fi
 		;;
 		artist)
 		newFile="$outputFolder"/"$artistFolder"
@@ -558,7 +569,7 @@ function outputFilename() {
 			#[[ "$#" -eq 0 ]] || debug "l2" "ERROR: Unable to create folder: $newFile ! Please fix and re-run!" # Simple error checking
 			folderTest "$newFile"
 		fi
-		newFile="$newFile"/"$fileName"
+		newFile="$newFile"/"$fileName"".mp3"
 		;;
 		album)
 		# Artist folder first
@@ -574,7 +585,7 @@ function outputFilename() {
 			mkdir "$newFile"
 			folderTest "$newFile"
 		fi
-		newFile="$newFile"/"$fileName"
+		newFile="$newFile"/"$fileName"".mp3"
 		;;
 		*)
 		debug "l2" "A fatal error has occurred! Unknown preserve level: $preserveLevel!"
