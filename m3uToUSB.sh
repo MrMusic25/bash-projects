@@ -4,6 +4,9 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v1.2.2
+# - Logic error with previous update, fixed it
+#
 # v1.2.1
 # - Suprisingly easy implementation of duplicate song handling for outputFile()
 # - Only took me two years to update this darn script lol. Gotta work on optimization and freezing issues on WSL soon...
@@ -132,7 +135,7 @@
 #     ~ if [[ $lokc -eq 1 ]]; then wait 2s; fi
 #   ~ Find a way to isolate the function for each thred so they don't overwrite each other's local vars
 #
-# v1.2.1, 16 Mar. 2018 11:25 PST
+# v1.2.2, 21 Mar. 2018 15:45 PDT
 
 ### Variables
 
@@ -556,8 +559,9 @@ function outputFilename() {
 		newFile="$outputFolder"/"$fileName"
 		# This loop will handle multiple copies of similar titled songs (e.g allows Monster by Starset and Monster by Skillet in the same folder
 		# Really only applies to non-artist/album folders
-		if [[ -f "$newFile"".mp3" ]]; then
-            newFile="$newFile"-"$(ls -l "$outputFolder" | grep -i "$fileName" | wc -l)"".mp3"
+		count="$(printf "%s\n" "${convertedPaths[@]}" | grep -i "$fileName" | wc -l)" # Using -i because Windows is case-insensitive
+		if [[ "$count" -gt 0 ]]; then
+            newFile="$newFile"-"$count"".mp3"
         else
             newFile="$newFile"".mp3"
         fi
