@@ -396,7 +396,7 @@ outFile="$outputFile".m3u
 touch "$outFile"
 for item in "${m3uItems[@]}";
 do
-	echo "$item" >> "$outFile"
+	echo "$item" | tee -a "$outFile"
 done
 
 if [[ ! -z $failedStrings ]]; then

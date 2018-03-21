@@ -4,7 +4,8 @@ source /usr/share/commonFunctions.sh
 ### Variables
 
 usage="Usage: playlistUpdater.sh <folderOfPlaylists>\n"
-prefix="/mnt" # Prefix for mounted NTFS drive 
+prefix="/mnt" # Prefix for mounted NTFS drive
+outputFolder="/mnt/f/Album"
 
 ### Functions
 
@@ -22,13 +23,14 @@ function convertPlaylist() {
 	fi
 	
 	# Convert!
+	debug "l3" "INFO: Converting $playlistName playlist!"
 	if [[ "$playlistName" == [Aa]lbum* ]]; then
 		# Album specific options
-		m2u -p b -f "$prefix" -n -c "$1" "$(pwd)"
+		m2u -p b -f "$prefix" -n "$1" "$outputFolder"
 	else
 		# Everything else
-		mkdir "$playlistName"
-		m2u -p n -f "$prefix" -n -c "$1" "$playlistName"
+		mkdir "$outputFolder"/"$playlistName"
+		m2u -p n -f "$prefix" -n -c "$1" "$outputFolder"/"$playlistName"
 	fi
 }
 
