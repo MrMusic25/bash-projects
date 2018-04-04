@@ -4,6 +4,8 @@
 # A bash implementation of my Powershell script, for when bash is available on Windows
 #
 # Changes:
+# v2.0.0
+# - Started work on a faster, more efficient version of the script
 # v1.2.2
 # - Logic error with previous update, fixed it
 #
@@ -16,105 +18,6 @@
 # - Added delete ability to script, gives a warnign beforehand
 # - Like always, untested for now (gotta break this habit... one day...)
 # - Minor text fixes
-#
-# v1.1.13
-# - Added deleteFolderProcessor() in prep for file deletion
-# - Made some small changes to debug statements
-#
-# v1.1.12
-# - Added $longName for better logging
-#
-# v1.1.11
-# - Reverted changes from v1.1.8, existing songs need a new way to be handled with preserveLevel=none
-# - For now, everything will be treated as a delta conversion - I will make a permanenent solution later
-# - ffmpeg gave me an error during testing, so I changed the way it converts
-# - Didn't put the right time in for displayProgress(), fixed now!
-# - Minor adjustments
-#
-# v1.1.10
-# - Added displayProgress() so the user sees the actual progress, at specified intervals
-# - Didn't think this warrented changing the minor version, just the patch version
-#
-# v1.1.9
-# - Playlist will now place a 'hidden' copy of the current playlist in the output folder
-# - Not used right now, but will likely be implemented later
-#
-# v1.1.8
-# - Some usage warnings for user
-# - Changed the way existing files are handled, if preserve=none and overwrite is off
-# - This change effectively stop overwriting same titled songs from different artists when mode is none. Statistically should be 100% effective
-#
-# v1.1.7
-# - Small change so that Song titles with a '.' in the name wouldn't get cut off (07 Mz. Hyde.mp3 -> 07 Mz.mp3)
-#
-# v1.1.6
-# - Testing shows everything works properly, Windows has some errors though... Assuming everything is fine though
-# - First major release! Everything works!
-#
-# v1.1.5
-# - processFailures() is ready for testing
-#
-# v1.1.4
-# - Changed some debugging messages to make reading the log easier
-# - Added outputFailures() function, outputs them to a file for debugging purposes
-# - Added determinePath(), basically a condensed version of fileVerifier.sh
-#
-# v1.1.3
-# - clean-numbers option is tested and works (now)
-# - Small change to how outputDirectory is evaluated
-# - Added fileTest() to more easily check if file conversion was successful, along with calls
-#
-# v1.1.2
-# - Added folderTest() because my current error checking for files was producing too many errors
-# - Implemented above function
-#
-# v1.1.1
-# - Functional changes; copying works, but conversion does not
-#
-# v1.1.0
-# - Solved all my problems with one line. Added a dependency, but THE SCRIPT WORKS NOW!
-# - All other changes are classified as minor text fixes
-# - Added unlisted option --test-import to test importing and filenames, see testImport()
-# - Didn't add it earlier, but timeout is disabled until I have time to get it working (it was giving me weird errors)
-# - -c option won't edit song titles that don't start with a number
-# - Added delta conversion, once againt a much easier implementation than I remember on Powershell
-#
-# v1.0.1
-# - Small changes, forgot to run it through shellcheck
-# - for loop in processArgs() seems to be preventing it from working now, update to this will come tomorrow
-#
-# v1.0.0
-# - Ready for release!
-# - Added converterLoop(), which does the actual work. Will find a way to parallel-ize this in a later version
-# - convertSong() will now copy if the song is mp3 or unconvertible, sending a debug message for the latter
-#
-# v0.5.0
-# - Added -c | --clean-numbers option to get rid of numbers in output song titles
-# - Created outputFilename(), to be used like win2UnixPath() but for the output name. Handles artist, album, folder checks, and numbers
-# 
-# v0.4.0
-# - Added code to remove trailing '/' from prefix and outputFolder, if it exists
-# - Added touchTest() to easily check if user has write permissions for folder
-# - Added error checking for outputFolder, and offer to make folder if non-existent
-#
-# v0.3.0
-# - Filled out displayHelp()
-# - processArgs() is ready
-# - convertSong() is ready
-# - Decided to add timeout options and error checking to convertSong()
-#
-# v0.2.0
-# - Added testImport(), containing the code I used to successfully test importM3U()
-# - Changed importM3U() so that it tests for validity before converting, as it takes a LOT of cycles to complete
-# - Function also warns user that conversion process will take time
-#
-# v0.1.0
-# - Added multiple function definitions in prep for what's to come
-# - Untested version of importM3U() made with a new method I found
-# - Added a check for ffmpeg and moreutils (planning on doing parallel processing for increased speed)
-#
-# v0.0.1
-# - Initial commit
 #
 # TODO:
 # - Great idea from this website to convert files in parallel, quick conversion! Requires ffmpeg, and moreutils
@@ -250,6 +153,7 @@ Options:
    -e | --edit-path-mode <[U]pper,[C]ut>         : Leaves the Windows root uppercase, or cuts it out (see documentation)
    -f | --prefix <folder_prefix>                 : Adds the prefix to each m3u line if it is a Windows path (/mnt, /media)
    -n | --no-overwrite                           : Disables overwriting of conflicting files
+   -t | --threads <number_Of_Threads>            : Number of parallel conversions to do. Defaults to $CPU_cores/2; 0 disables threads.
    -c | --clean-numbers [delimiter]              : Deletes anything before delimiter in output file (gets rid of numbers before song titles)
                                                  : Delimiter not required, set to space by default. Besure to encase delimiter in ''!
    
@@ -808,7 +712,7 @@ function displayProgress() {
 
 processArgs "$@"
 #testImport # This line is used for debugging. You can also use the secret --test-import option to do this
-checkRequirements "ffmpeg" "dos2unix" #"libmp3lame0" #"moreutils"
+checkRequirements "ffmpeg" "dos2unix" "parallel" #"libmp3lame0"
 if [[ -z $overwrite ]]; then 
 	# Warn user about accidentally overwriting files with -c set without -n
 	if [[ "$noNumbers" == "true" && "$preserveLevel" == "none" ]]; then
