@@ -560,7 +560,7 @@ function outputFilename() {
 		# This loop will handle multiple copies of similar titled songs (e.g allows Monster by Starset and Monster by Skillet in the same folder
 		# Really only applies to non-artist/album folders
 		count="$(printf "%s\n" "${convertedPaths[@]}" | grep -i "$fileName" | wc -l)" # Using -i because Windows is case-insensitive
-		if [[ "$count" -gt 0 ]]; then
+		if [[ "$count" -gt 1 ]]; then
             newFile="$newFile"-"$count"".mp3"
         else
             newFile="$newFile"".mp3"
