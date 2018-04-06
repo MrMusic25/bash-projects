@@ -6,6 +6,10 @@
 # Changes:
 # v2.0.0
 # - Started work on a faster, more efficient version of the script
+# - Major change to importM3U(): it now appends the output file name to $newFile in real time
+# - Not significant yet, but makes implementation of future plans easier
+# - Changed converterLoop() so that duplicate names works now (untested)
+#
 # v1.2.2
 # - Logic error with previous update, fixed it
 #
@@ -38,7 +42,7 @@
 #     ~ if [[ $lokc -eq 1 ]]; then wait 2s; fi
 #   ~ Find a way to isolate the function for each thred so they don't overwrite each other's local vars
 #
-# v1.2.2, 21 Mar. 2018 15:45 PDT
+# v2.0.0, 6 Apr. 2018 09:07 PDT
 
 ### Variables
 
@@ -378,22 +382,33 @@ function importM3U() {
 	
 	while read -r line
 	do
-		[[ "$line" == \#* ]] && continue # Skip the line if it starts with a '#'
 		filePaths+=("$line")
-		((total++))
 	done < "${m3uFile}"
 	
 	# Now that the lines are imported, make sure they are all Linux-friendly
+	newFile="$outputFolder""/.""$(echo "$m3uFile" | rev | cut -d'/' -f1 | rev)"
+	if [[ -f "$newFile" ]]; then
+        rm "$newFile" # Disable this once we figure out how to handle file deletion via diff
+    fi
+	touch "$newFile"
+	
 	for path in "${filePaths[@]}"
 	do
-		if [[ -f "$path" ]]; then
+		if [[ "$path" == \#* ]]; then
+            echo "$path" >> "$newFile"
+		elif [[ -f "$path" ]]; then
 			convertedPaths+=("$path") # This should save a lot of time with native Linux m3u files
+			((total++))
+			echo "$path" >> "$newFile"
 		else
-			convertedPaths+=("$(win2UnixPath "$path" "$w2uMode")")
+			tpath="$(win2UnixPath "$path" "$w2uMode")"
+			convertedPaths+=("$tpath")
+			((total++))
+			echo "$tpath" >> "$newFile"
 		fi
 	done
-	newFile=".""$(echo "$m3uFile" | rev | cut -d'/' -f1 | rev)"
-	cp "$m3uFile" "$outputFolder"/"$newFile" # Makes a copy of the current playlist, hidden, in the output folder
+	#newFile=".""$(echo "$m3uFile" | rev | cut -d'/' -f1 | rev)"
+	#cp "$m3uFile" "$outputFolder"/"$newFile" # Makes a copy of the current playlist, hidden, in the output folder
 }
 
 function testImport() {
@@ -522,6 +537,7 @@ function converterLoop() {
 		fi
 		
 		currentFile="$(outputFilename "$songFile")"
+		convertedPaths=("${convertedPaths[@]/$songFile}") # Comment THIS line if things start failing. Deletes array elements after input processing. Effectively FIFO.
 		# If anyone ever asks why I love functions, I will show them this. 
 		# The function right here is the reason I love programming (or scripting, to be more specific)
 		convertSong "$songFile" "$currentFile"
