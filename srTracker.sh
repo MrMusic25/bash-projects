@@ -62,7 +62,7 @@ function displayStats() {
     fi
     
     # Print it all in one big printf statement
-    printf "Stats: You are %s %s SR this session (%s %s SR since last update), %s %s SR overall; %s games tonight.\n" "$sessionWord" "$sessionDiff" "$updateWord" "$updateDiff" "$overallWord" "$overallDiff" "$sessionGames"
+    printf "Stats: SR %s, you are %s %s SR this session (%s %s SR since last update), %s %s SR overall; %s games tonight.\n" "$currentSR" "$sessionWord" "$sessionDiff" "$updateWord" "$updateDiff" "$overallWord" "$overallDiff" "$sessionGames"
 }
 
 ### Main
@@ -100,7 +100,7 @@ fi
 numGames=0 # Divisor for average
 totalDelta=0 # Add all the deltas together, divide it by numGames later
 currentSR="$start"
-announce "Welcome back! Your current SR is: $currentSR. Good luck!"
+#announce "Welcome back! Your current SR is: $currentSR. Good luck!"
 
 while read line
 do
