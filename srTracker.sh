@@ -4,7 +4,7 @@
 #
 # Usage: ./srTracker.sh [text_file]
 #
-# v1.0, 14 Apr. 2018, 09:47 PST
+# v1.1, 31 May 2018, 20:45 PST
 
 source /usr/share/commonFunctions.sh
 
@@ -100,6 +100,8 @@ fi
 numGames=0 # Divisor for average
 totalDelta=0 # Add all the deltas together, divide it by numGames later
 currentSR="$start"
+announce "Welcome back! Your current SR is: $currentSR. Good luck!"
+
 while read line
 do
     # Prevents error by re-importing initial value
@@ -131,7 +133,7 @@ while [[ -z $exitFlag ]];
 do
     read -p "Enter the SR from your last match, or enter quit to exit: " newSR
     case $newSR in
-        q*)
+        q*|e*)
         exitFlag=1
         ;;
         *)
@@ -141,8 +143,9 @@ do
             ((totalDelta+=-1*(currentSR-newSR)))
             ((numGames++))
             currentSR="$newSR"
+            echo "$newSR" >> "$trackFile" # Accidentally put the word 'exit' in the trackFile, so I moved the location
         fi
-        echo "$newSR" >> "$trackFile"
+        #echo "$newSR" >> "$trackFile"
         ;;
     esac
     if [[ "$updateCount" -ge "$timeBetweenUpdates" ]]; then
